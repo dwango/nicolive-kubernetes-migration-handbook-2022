@@ -1,0 +1,34 @@
+.DS_Store
+   
+# Generated files by hugo
+/public/
+/resources/_gen/
+/assets/jsconfig.json
+hugo_stats.json
+
+# Executable may be added to repository
+hugo.exe
+hugo.darwin
+hugo.linux
+
+# Temporary lock file while building
+/.hugo_build.lock
+
+# PDF
+/tex-workspace/sub
+*.tex
+*.log
+*.aux
+*.dvi
+*.pdf
+*.out
+*.toc
+*.pyg
+_minted-article
+!article.tex
+!article.pdf
+!gallery.pdf
+!gallery/*.pdf
+
+# Nodejs
+node_modules
