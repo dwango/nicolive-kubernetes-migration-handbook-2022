@@ -1,0 +1,123 @@
+<!doctype html><html lang=ja-jp dir=ltr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=description content="負荷対策 #  nodeSelector #  NodeはPodが配置されるVMや物理マシンですが、 配置されるPodの処理内容によって使用されるリソースが大きく変わることがあります。 具体的にはIngress Gatewayはクラスター内外のトラフィックを集中的に処理することが事前にわかっています。 また、Ingress Gatewayがなければアプリケーションにアクセスできないため、必ずリソースが枯渇しない状態にする必要があります。 そのため、Gatewayとしての役割以外を持つPodと別のNodeに配置されるようにすることで、Podが安定して稼働できるリソースの確保を実現します。
+KubernetesはNodeに対してラベルを付与し、PodにnodeSelectorを付与することで指定のNodeに対してPodを配置することができます。 Nodeに付与されているlabelは以下のコマンドで確認することができます。
+$ kubectl get nodes --show-labels # 簡単のため表示を省略 gateway01 Ready <none> 1d v1.21.12 node-role=gateway gateway02 Ready <none> 1d v1.21.12 node-role=gateway worker01 Ready <none> 1d v1.21.12 node-role=worker worker02 Ready <none> 1d v1.21.12 node-role=worker この場合、workerに対してPodを配置したい場合は次のように記述することができます。
+1 2 3 4 5 6 7 8 9 10 11  apiVersion: apps/v1 kind: Deployment metadata:  name: app  namespace: demo spec:  template:  # 中略  spec:  nodeSelector:  node-role: worker    Node上へのPodのスケジューリング | Kubernetes  PodAntiAffinity #  Podのスケジューリングはデフォルトのまま使用すると、Nodeに対する配置は明示的にコントロールされません。 つまり、あるアプリケーションを搭載したPodがNodeに偏らないようにしたいが、偏ってしまう（逆も然り）など発生します。 特にBFFサーバーはステートレスなサーバーであるため、分散配置されている方が望ましいでしょう。"><meta name=theme-color content="#FFFFFF"><meta name=color-scheme content="light dark"><meta property="og:title" content="負荷分散"><meta property="og:description" content="負荷対策 #  nodeSelector #  NodeはPodが配置されるVMや物理マシンですが、 配置されるPodの処理内容によって使用されるリソースが大きく変わることがあります。 具体的にはIngress Gatewayはクラスター内外のトラフィックを集中的に処理することが事前にわかっています。 また、Ingress Gatewayがなければアプリケーションにアクセスできないため、必ずリソースが枯渇しない状態にする必要があります。 そのため、Gatewayとしての役割以外を持つPodと別のNodeに配置されるようにすることで、Podが安定して稼働できるリソースの確保を実現します。
+KubernetesはNodeに対してラベルを付与し、PodにnodeSelectorを付与することで指定のNodeに対してPodを配置することができます。 Nodeに付与されているlabelは以下のコマンドで確認することができます。
+$ kubectl get nodes --show-labels # 簡単のため表示を省略 gateway01 Ready <none> 1d v1.21.12 node-role=gateway gateway02 Ready <none> 1d v1.21.12 node-role=gateway worker01 Ready <none> 1d v1.21.12 node-role=worker worker02 Ready <none> 1d v1.21.12 node-role=worker この場合、workerに対してPodを配置したい場合は次のように記述することができます。
+1 2 3 4 5 6 7 8 9 10 11  apiVersion: apps/v1 kind: Deployment metadata:  name: app  namespace: demo spec:  template:  # 中略  spec:  nodeSelector:  node-role: worker    Node上へのPodのスケジューリング | Kubernetes  PodAntiAffinity #  Podのスケジューリングはデフォルトのまま使用すると、Nodeに対する配置は明示的にコントロールされません。 つまり、あるアプリケーションを搭載したPodがNodeに偏らないようにしたいが、偏ってしまう（逆も然り）など発生します。 特にBFFサーバーはステートレスなサーバーであるため、分散配置されている方が望ましいでしょう。"><meta property="og:type" content="article"><meta property="og:url" content="https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022/docs/performance/load-balancing/"><meta property="article:section" content="docs"><meta property="article:modified_time" content="2022-06-02T17:14:12+09:00"><title>負荷分散 | ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022</title><link rel=manifest href=/nicolive-kubernetes-migration-handbook-2022/manifest.json><link rel=icon href=/nicolive-kubernetes-migration-handbook-2022/favicon.png type=image/x-icon><link rel=stylesheet href=/nicolive-kubernetes-migration-handbook-2022/book.min.fcc3ce6727c2b2b91bc9a518374b77e2097222f7fe4dc0016db675da315da284.css integrity="sha256-/MPOZyfCsrkbyaUYN0t34glyIvf+TcABbbZ12jFdooQ=" crossorigin=anonymous><script defer src=/nicolive-kubernetes-migration-handbook-2022/flexsearch.min.js></script>
+<script defer src=/nicolive-kubernetes-migration-handbook-2022/en.search.min.316dfec6e198e1d4e40887d7250e8b92d7bde449cce89841b69417adbdc06208.js integrity="sha256-MW3+xuGY4dTkCIfXJQ6Lkte95EnM6JhBtpQXrb3AYgg=" crossorigin=anonymous></script>
+<script defer src=/nicolive-kubernetes-migration-handbook-2022/sw.min.dd2d6bf3c93d9223651db8ea5867f95fed658724b711f7b9e9e1d8aa46a84ebd.js integrity="sha256-3S1r88k9kiNlHbjqWGf5X+1lhyS3Efe56eHYqkaoTr0=" crossorigin=anonymous></script></head><body dir=ltr><input type=checkbox class="hidden toggle" id=menu-control>
+<input type=checkbox class="hidden toggle" id=toc-control><main class="container flex"><aside class=book-menu><div class=book-menu-content><nav><h2 class=book-brand><a class="flex align-center" href=/nicolive-kubernetes-migration-handbook-2022/><span>ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022</span></a></h2><div class=book-search><input type=text id=book-search-input placeholder=Search aria-label=Search maxlength=64 data-hotkeys=s/><div class="book-search-spinner hidden"></div><ul id=book-search-results></ul></div><ul><li><span>ネットワーク</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/network/architecture/>移行前・移行中・移行後のネットワーク設計</a></li></ul></li><li><span>Manifest管理</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/manifest-management/>KubernetesのManifest管理</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/kubernetes-manifest-written-by-typescript/>TypeScriptでKubernetesのmanifestを記述する</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/kubernetes-manifest-generator-architecture/>TypeScriptでManifestを生成するGeneratorのアーキテクチャ</a></li></ul></li><li><span>Continuous Delivery</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/argo-cd/>Argo CDの利用</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/argo-rollouts/>Argo Rolloutsの利用</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/slack-bot/>Slack Botによる自動化</a></li></ul></li><li><span>Service Mesh (Istio)</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/istio/>BFFとIstio</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/access-log/>アクセスログ</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/traffic-management/>Istio Ingress Gatewayの設定</a></li></ul></li><li><span>Rate Limit</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/global-ratelimit/>Global RateLimit</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/local-ratelimit/>Local RateLimit</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/ratelimit-is-unless/>RateLimitで負荷の上昇を防げないパターン</a></li></ul></li><li><span>スケーリング</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/scalability/horizontal-pod-autoscaler/>水平スケール</a></li></ul></li><li><span>負荷</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/load-test/>負荷試験</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/monitoring/>モニタリング</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/load-balancing/ class=active>負荷分散</a></li></ul></li><li><span>Docker SwarmからKubernetesへの移行</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/migrate-practice/migrate-docker-swarm-to-kubernetes/>移行の実施</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/migrate-practice/application/>アプリケーションの移行</a></li></ul></li></ul></nav><script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script></div></aside><div class=book-page><header class=book-header><div class="flex align-center justify-between"><label for=menu-control><img src=/nicolive-kubernetes-migration-handbook-2022/svg/menu.svg class=book-icon alt=Menu></label>
+<strong>負荷分散</strong>
+<label for=toc-control><img src=/nicolive-kubernetes-migration-handbook-2022/svg/toc.svg class=book-icon alt="Table of Contents"></label></div><aside class="hidden clearfix"><nav id=TableOfContents><ul><li><a href=#nodeselector>nodeSelector</a></li><li><a href=#podantiaffinity>PodAntiAffinity</a></li></ul></nav></aside></header><article class=markdown><h1 id=負荷対策>負荷対策
+<a class=anchor href=#%e8%b2%a0%e8%8d%b7%e5%af%be%e7%ad%96>#</a></h1><h2 id=nodeselector>nodeSelector
+<a class=anchor href=#nodeselector>#</a></h2><p><a href=https://kubernetes.io/ja/docs/concepts/architecture/nodes/>Node</a>はPodが配置されるVMや物理マシンですが、
+配置されるPodの処理内容によって使用されるリソースが大きく変わることがあります。
+具体的にはIngress Gatewayはクラスター内外のトラフィックを集中的に処理することが事前にわかっています。
+また、Ingress Gatewayがなければアプリケーションにアクセスできないため、必ずリソースが枯渇しない状態にする必要があります。
+そのため、Gatewayとしての役割以外を持つPodと別のNodeに配置されるようにすることで、Podが安定して稼働できるリソースの確保を実現します。</p><p>KubernetesはNodeに対してラベルを付与し、PodにnodeSelectorを付与することで指定のNodeに対してPodを配置することができます。
+Nodeに付与されているlabelは以下のコマンドで確認することができます。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>$ kubectl get nodes --show-labels
+</span></span><span style=display:flex><span><span style=color:#75715e># 簡単のため表示を省略</span>
+</span></span><span style=display:flex><span>gateway01   Ready    &lt;none&gt;        1d    v1.21.12   node-role<span style=color:#f92672>=</span>gateway
+</span></span><span style=display:flex><span>gateway02   Ready    &lt;none&gt;        1d    v1.21.12   node-role<span style=color:#f92672>=</span>gateway
+</span></span><span style=display:flex><span>worker01    Ready    &lt;none&gt;        1d    v1.21.12   node-role<span style=color:#f92672>=</span>worker
+</span></span><span style=display:flex><span>worker02    Ready    &lt;none&gt;        1d    v1.21.12   node-role<span style=color:#f92672>=</span>worker
+</span></span></code></pre></div><p>この場合、<code>worker</code>に対してPodを配置したい場合は次のように記述することができます。</p><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span></span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>apps/v1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Deployment</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>app</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>demo</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>template</span>:
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 中略</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>      <span style=color:#f92672>nodeSelector</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>        <span style=color:#f92672>node-role</span>: <span style=color:#ae81ff>worker</span>
+</span></span></code></pre></td></tr></table></div></div><ul><li><a href=https://kubernetes.io/ja/docs/concepts/scheduling-eviction/assign-pod-node/>Node上へのPodのスケジューリング | Kubernetes</a></li></ul><h2 id=podantiaffinity>PodAntiAffinity
+<a class=anchor href=#podantiaffinity>#</a></h2><p>Podのスケジューリングはデフォルトのまま使用すると、Nodeに対する配置は明示的にコントロールされません。
+つまり、あるアプリケーションを搭載したPodがNodeに偏らないようにしたいが、偏ってしまう（逆も然り）など発生します。
+特にBFFサーバーはステートレスなサーバーであるため、分散配置されている方が望ましいでしょう。</p><p>Kubernetesでは<code>podAffinity</code>(podを条件に応じて集約)または<code>podAntiAffinity</code>(podを条件に応じて分散)を指定することでPodのスケジューリングをコントロールすることができます。
+例えば、「<code>app.kubernetes.io/name=myapp</code>というラベルを持つPodが、<strong>なるべく</strong>同じNodeに配置されない」スケジューリング設定は次のように表現できます。</p><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span></span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">31
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">32
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">33
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">34
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">35
+</span></span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>apps/v1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Deployment</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>myapp</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>demo</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>app</span>: <span style=color:#ae81ff>myapp</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>    <span style=color:#f92672>app.kubernetes.io/name</span>: <span style=color:#ae81ff>myapp</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>template</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>affinity</span>:
+</span></span><span style=display:flex><span>        <span style=color:#75715e># ポッド間のスケジューリングルール</span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># 以下の条件に合致する場所に配置しないポリシー</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>podAntiAffinity</span>: <span style=color:#75715e># 逆は podAntiAffinity</span>
+</span></span><span style=display:flex><span>          <span style=color:#75715e># 優先的に考慮されるスケジューリングポリシー</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>preferredDuringSchedulingIgnoredDuringExecution</span>:
+</span></span><span style=display:flex><span>            - <span style=color:#75715e># 優先度の重み付け（1 - 100の間で定義）</span>
+</span></span><span style=display:flex><span>              <span style=color:#75715e># Nodeごとにweightを加算しScoreを算出し、</span>
+</span></span><span style=display:flex><span>              <span style=color:#75715e># 最も高いスコアを獲得したNodeに対してPodが配置される</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>weight</span>: <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>              <span style=color:#75715e># app.kubernetes.io/name = &#34;myapp&#34; のラベルを持つPod</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>podAffinityTerm</span>:
+</span></span><span style=display:flex><span>                <span style=color:#75715e># Nodeをフィルタリングするためのキー。</span>
+</span></span><span style=display:flex><span>                <span style=color:#75715e># この空間内のNodeに対するPod間のSelectorでAffinityのScoreが計算される</span>
+</span></span><span style=display:flex><span>                <span style=color:#75715e># kubernetes.io/hostnameは各Nodeに付与される識別子として利用できる</span>
+</span></span><span style=display:flex><span>                <span style=color:#75715e># (Nodeのフィルタリング条件として偏りがないキー)</span>
+</span></span><span style=display:flex><span>                <span style=color:#f92672>topologyKey</span>: <span style=color:#ae81ff>kubernetes.io/hostname</span>
+</span></span><span style=display:flex><span>                <span style=color:#f92672>labelSelector</span>:
+</span></span><span style=display:flex><span>                  <span style=color:#75715e># app.kubernetes.io/name = &#34;myapp&#34; にマッチするPodを集計対象とする</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>matchExpressions</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>                    - <span style=color:#f92672>key</span>: <span style=color:#ae81ff>app.kubernetes.io/name</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>                      <span style=color:#f92672>operator</span>: <span style=color:#ae81ff>In</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>                      <span style=color:#f92672>values</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>                        - <span style=color:#ae81ff>myapp</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>preferredDuringSchedulingIgnoredDuringExecution</code>は<code>podAffinityTerm</code>で指定された<code>labelSelector</code>に該当するPodを<code>topologyKey</code>ごとに<code>weight</code>を加算してスコアを算出します。
+<code>podAntiAffinity</code>で利用されるスコアになるため、スコアが高くなるほどPodはスコアの高いNodeに対してなるべく<strong>配置されない</strong>ようになります。
+（<code>podAntiAffinity</code>はスコアの符号がマイナスで、<code>podAffinity</code>はスコアの符号がプラスと思えばわかりやすい。）</p><p>また、ここでは<code>labelSelector</code>で使う<code>key</code>や<code>topologyKey</code>はWell-Known Labelsを利用しています。</p><ul><li><a href=https://kubernetes.io/ja/docs/concepts/scheduling-eviction/assign-pod-node/>Node上へのPodのスケジューリング | Kubernetes</a></li><li><a href=https://kubernetes.io/docs/reference/labels-annotations-taints/>Well-Known Labels, Annotations and Taints | Kubernetes</a></li></ul></article><footer class=book-footer><div class="flex flex-wrap justify-between"></div><script>(function(){function e(n){const e=window.getSelection(),t=document.createRange();t.selectNodeContents(n),e.removeAllRanges(),e.addRange(t)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script></footer><div class=book-comments></div><label for=menu-control class="hidden book-menu-overlay"></label></div><aside class=book-toc><div class=book-toc-content><nav id=TableOfContents><ul><li><a href=#nodeselector>nodeSelector</a></li><li><a href=#podantiaffinity>PodAntiAffinity</a></li></ul></nav></div></aside></main></body></html>

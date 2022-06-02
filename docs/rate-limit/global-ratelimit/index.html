@@ -1,0 +1,139 @@
+<!doctype html><html lang=ja-jp dir=ltr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=description content="Global RateLimit #  Global Rate LimitはIngress Gatewayより後方側にいるPodに対するリクエストの流量制限を実施します。 すなわち、Kubernetesクラスターまではリクエストは到達します。 envoyproxy/ratelimitはこれを実現するためのリファレンス実装で、外部サービスとして後付で導入することが可能です。
+Trafficがingress gatewayに到達した後の大雑把な流れは次のとおりです。
+ rate_limit_serviceで指定されたマイクロサービスにたいしてgrpcで問い合わせをします。 envoyratelimitはredis（memcacheも利用可）に格納したDescriptorに対するリクエスト数の計算を実施します。  ratelimit.go#L164 fixed_cache_impl.go#L39-L128   結果をingress gatewayに対してRateLimitResponseに乗せて返却 ingress gatewayはレスポンスを受けて429を返すかどうか決定する。  Global Ratelimitの設定 #  envoyproxy/ratelimitを利用するには2つの設定が必要です。
+ Descriptorの設置 Descriptorに対するRate Limitの定義  DescriptorはEnvoy（istio-proxy）に対して定義することが可能で、Gatewayとして機能しているistio-proxyだけでなく、Sidecarとして搭載されているistio-proxyに対しても定義することが可能です。
+DescriptorはActionによって条件が定義することができ、これをリファレンス実装されたratelimitのマイクロサービスで使用することにより、特定のPATHやheaderに対してratelimitを適用することができます。
+具体的な例を示しましょう。
+:path単位でRate Limitをかける #  例えば、/というパスに対してRate Limitを作りたい場合、まずDescriptorをGatewayのistio-proxyに対して作る必要があります。
+apiVersion: networking.istio.io/v1alpha3 kind: EnvoyFilter metadata:  name: ratelimit-actions spec:  workloadSelector:  labels:  app: istio-ingressgateway  configPatches:  - applyTo: VIRTUAL_HOST  match:  context: GATEWAY  routeConfiguration:  vhost:  name: &#34;&#34;  route:  action: ANY  patch:  operation: MERGE  value:  rate_limits:  - actions:  - request_headers:  # HTTPの場合Request Headerの`:path`にURIが格納されている  header_name: &#34;:path&#34;  # &#34;PATH&#34;という名前でDescriptorを作成する  descriptor_key: PATH ※ これ以降、rate_limitsより上層の定義は省略します。"><meta name=theme-color content="#FFFFFF"><meta name=color-scheme content="light dark"><meta property="og:title" content="Global RateLimit"><meta property="og:description" content="Global RateLimit #  Global Rate LimitはIngress Gatewayより後方側にいるPodに対するリクエストの流量制限を実施します。 すなわち、Kubernetesクラスターまではリクエストは到達します。 envoyproxy/ratelimitはこれを実現するためのリファレンス実装で、外部サービスとして後付で導入することが可能です。
+Trafficがingress gatewayに到達した後の大雑把な流れは次のとおりです。
+ rate_limit_serviceで指定されたマイクロサービスにたいしてgrpcで問い合わせをします。 envoyratelimitはredis（memcacheも利用可）に格納したDescriptorに対するリクエスト数の計算を実施します。  ratelimit.go#L164 fixed_cache_impl.go#L39-L128   結果をingress gatewayに対してRateLimitResponseに乗せて返却 ingress gatewayはレスポンスを受けて429を返すかどうか決定する。  Global Ratelimitの設定 #  envoyproxy/ratelimitを利用するには2つの設定が必要です。
+ Descriptorの設置 Descriptorに対するRate Limitの定義  DescriptorはEnvoy（istio-proxy）に対して定義することが可能で、Gatewayとして機能しているistio-proxyだけでなく、Sidecarとして搭載されているistio-proxyに対しても定義することが可能です。
+DescriptorはActionによって条件が定義することができ、これをリファレンス実装されたratelimitのマイクロサービスで使用することにより、特定のPATHやheaderに対してratelimitを適用することができます。
+具体的な例を示しましょう。
+:path単位でRate Limitをかける #  例えば、/というパスに対してRate Limitを作りたい場合、まずDescriptorをGatewayのistio-proxyに対して作る必要があります。
+apiVersion: networking.istio.io/v1alpha3 kind: EnvoyFilter metadata:  name: ratelimit-actions spec:  workloadSelector:  labels:  app: istio-ingressgateway  configPatches:  - applyTo: VIRTUAL_HOST  match:  context: GATEWAY  routeConfiguration:  vhost:  name: &#34;&#34;  route:  action: ANY  patch:  operation: MERGE  value:  rate_limits:  - actions:  - request_headers:  # HTTPの場合Request Headerの`:path`にURIが格納されている  header_name: &#34;:path&#34;  # &#34;PATH&#34;という名前でDescriptorを作成する  descriptor_key: PATH ※ これ以降、rate_limitsより上層の定義は省略します。"><meta property="og:type" content="article"><meta property="og:url" content="https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/global-ratelimit/"><meta property="article:section" content="docs"><meta property="article:modified_time" content="2022-06-02T17:14:12+09:00"><title>Global RateLimit | ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022</title><link rel=manifest href=/nicolive-kubernetes-migration-handbook-2022/manifest.json><link rel=icon href=/nicolive-kubernetes-migration-handbook-2022/favicon.png type=image/x-icon><link rel=stylesheet href=/nicolive-kubernetes-migration-handbook-2022/book.min.fcc3ce6727c2b2b91bc9a518374b77e2097222f7fe4dc0016db675da315da284.css integrity="sha256-/MPOZyfCsrkbyaUYN0t34glyIvf+TcABbbZ12jFdooQ=" crossorigin=anonymous><script defer src=/nicolive-kubernetes-migration-handbook-2022/flexsearch.min.js></script>
+<script defer src=/nicolive-kubernetes-migration-handbook-2022/en.search.min.316dfec6e198e1d4e40887d7250e8b92d7bde449cce89841b69417adbdc06208.js integrity="sha256-MW3+xuGY4dTkCIfXJQ6Lkte95EnM6JhBtpQXrb3AYgg=" crossorigin=anonymous></script>
+<script defer src=/nicolive-kubernetes-migration-handbook-2022/sw.min.dd2d6bf3c93d9223651db8ea5867f95fed658724b711f7b9e9e1d8aa46a84ebd.js integrity="sha256-3S1r88k9kiNlHbjqWGf5X+1lhyS3Efe56eHYqkaoTr0=" crossorigin=anonymous></script></head><body dir=ltr><input type=checkbox class="hidden toggle" id=menu-control>
+<input type=checkbox class="hidden toggle" id=toc-control><main class="container flex"><aside class=book-menu><div class=book-menu-content><nav><h2 class=book-brand><a class="flex align-center" href=/nicolive-kubernetes-migration-handbook-2022/><span>ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022</span></a></h2><div class=book-search><input type=text id=book-search-input placeholder=Search aria-label=Search maxlength=64 data-hotkeys=s/><div class="book-search-spinner hidden"></div><ul id=book-search-results></ul></div><ul><li><span>ネットワーク</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/network/architecture/>移行前・移行中・移行後のネットワーク設計</a></li></ul></li><li><span>Manifest管理</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/manifest-management/>KubernetesのManifest管理</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/kubernetes-manifest-written-by-typescript/>TypeScriptでKubernetesのmanifestを記述する</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/kubernetes-manifest-generator-architecture/>TypeScriptでManifestを生成するGeneratorのアーキテクチャ</a></li></ul></li><li><span>Continuous Delivery</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/argo-cd/>Argo CDの利用</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/argo-rollouts/>Argo Rolloutsの利用</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/slack-bot/>Slack Botによる自動化</a></li></ul></li><li><span>Service Mesh (Istio)</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/istio/>BFFとIstio</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/access-log/>アクセスログ</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/traffic-management/>Istio Ingress Gatewayの設定</a></li></ul></li><li><span>Rate Limit</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/global-ratelimit/ class=active>Global RateLimit</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/local-ratelimit/>Local RateLimit</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/ratelimit-is-unless/>RateLimitで負荷の上昇を防げないパターン</a></li></ul></li><li><span>スケーリング</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/scalability/horizontal-pod-autoscaler/>水平スケール</a></li></ul></li><li><span>負荷</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/load-test/>負荷試験</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/monitoring/>モニタリング</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/load-balancing/>負荷分散</a></li></ul></li><li><span>Docker SwarmからKubernetesへの移行</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/migrate-practice/migrate-docker-swarm-to-kubernetes/>移行の実施</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/migrate-practice/application/>アプリケーションの移行</a></li></ul></li></ul></nav><script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script></div></aside><div class=book-page><header class=book-header><div class="flex align-center justify-between"><label for=menu-control><img src=/nicolive-kubernetes-migration-handbook-2022/svg/menu.svg class=book-icon alt=Menu></label>
+<strong>Global RateLimit</strong>
+<label for=toc-control><img src=/nicolive-kubernetes-migration-handbook-2022/svg/toc.svg class=book-icon alt="Table of Contents"></label></div><aside class="hidden clearfix"><nav id=TableOfContents><ul><li><a href=#global-ratelimitの設定>Global Ratelimitの設定</a><ul><li><a href=#path単位でrate-limitをかける><code>:path</code>単位でRate Limitをかける</a></li></ul></li><li><a href=#istio-proxyとrate-limitのマイクロサービスとの連携>istio-proxyとRate Limitのマイクロサービスとの連携</a></li></ul></nav></aside></header><article class=markdown><h1 id=global-ratelimit>Global RateLimit
+<a class=anchor href=#global-ratelimit>#</a></h1><p>Global Rate LimitはIngress Gatewayより後方側にいるPodに対するリクエストの流量制限を実施します。
+すなわち、Kubernetesクラスターまではリクエストは到達します。
+<a href=https://github.com/envoyproxy/ratelimit>envoyproxy/ratelimit</a>はこれを実現するためのリファレンス実装で、外部サービスとして後付で導入することが可能です。</p><p>Trafficがingress gatewayに到達した後の大雑把な流れは次のとおりです。</p><ol><li><code>rate_limit_service</code>で指定されたマイクロサービスにたいしてgrpcで問い合わせをします。</li><li><code>envoyratelimit</code>は<code>redis</code>（<code>memcache</code>も利用可）に格納したDescriptorに対するリクエスト数の計算を実施します。<ul><li><a href=https://github.com/envoyproxy/ratelimit/blob/main/src/service/ratelimit.go#L164>ratelimit.go#L164</a></li><li><a href=https://github.com/envoyproxy/ratelimit/blob/main/src/redis/fixed_cache_impl.go#L39-L128>fixed_cache_impl.go#L39-L128</a></li></ul></li><li>結果をingress gatewayに対して<a href="https://pkg.go.dev/github.com/envoyproxy/go-control-plane@v0.10.1/envoy/service/ratelimit/v3?utm_source=gopls#RateLimitResponse">RateLimitResponse</a>に乗せて返却</li><li>ingress gatewayはレスポンスを受けて429を返すかどうか決定する。</li></ol><p><img src=../global-ratelimit.svg alt="Global RateLimitの概略"></p><h2 id=global-ratelimitの設定>Global Ratelimitの設定
+<a class=anchor href=#global-ratelimit%e3%81%ae%e8%a8%ad%e5%ae%9a>#</a></h2><p><code>envoyproxy/ratelimit</code>を利用するには2つの設定が必要です。</p><ol><li>Descriptorの設置</li><li>Descriptorに対するRate Limitの定義</li></ol><p>DescriptorはEnvoy（istio-proxy）に対して定義することが可能で、Gatewayとして機能しているistio-proxyだけでなく、Sidecarとして搭載されているistio-proxyに対しても定義することが可能です。</p><p>Descriptorは<a href=https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto#config-route-v3-ratelimit-action>Action</a>によって条件が定義することができ、これをリファレンス実装されたratelimitのマイクロサービスで使用することにより、特定のPATHやheaderに対してratelimitを適用することができます。</p><p>具体的な例を示しましょう。</p><h3 id=path単位でrate-limitをかける><code>:path</code>単位でRate Limitをかける
+<a class=anchor href=#path%e5%8d%98%e4%bd%8d%e3%81%a7rate-limit%e3%82%92%e3%81%8b%e3%81%91%e3%82%8b>#</a></h3><p>例えば、<code>/</code>というパスに対してRate Limitを作りたい場合、まずDescriptorをGatewayのistio-proxyに対して作る必要があります。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>networking.istio.io/v1alpha3</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>EnvoyFilter</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>ratelimit-actions</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>workloadSelector</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>app</span>: <span style=color:#ae81ff>istio-ingressgateway</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>configPatches</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>applyTo</span>: <span style=color:#ae81ff>VIRTUAL_HOST</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>match</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>context</span>: <span style=color:#ae81ff>GATEWAY</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>routeConfiguration</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>vhost</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;&#34;</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>route</span>:
+</span></span><span style=display:flex><span>              <span style=color:#f92672>action</span>: <span style=color:#ae81ff>ANY</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>patch</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>operation</span>: <span style=color:#ae81ff>MERGE</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>value</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>rate_limits</span>:
+</span></span><span style=display:flex><span>            - <span style=color:#f92672>actions</span>:
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>request_headers</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#75715e># HTTPの場合Request Headerの`:path`にURIが格納されている</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>header_name</span>: <span style=color:#e6db74>&#34;:path&#34;</span>
+</span></span><span style=display:flex><span>                    <span style=color:#75715e># &#34;PATH&#34;という名前でDescriptorを作成する</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>descriptor_key</span>: <span style=color:#ae81ff>PATH</span>
+</span></span></code></pre></div><p>※ これ以降、<code>rate_limits</code>より上層の定義は省略します。</p><p>この<code>PATH</code>に対してenvoyproyx/ratelimitによって<code>10 rpm (request / minutes)</code>の制限を加える定義は次のようになります。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>descriptors</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>key</span>: <span style=color:#ae81ff>PATH</span> <span style=color:#75715e># actionsに定義したdescriptor_key</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>value</span>: <span style=color:#ae81ff>/ </span> <span style=color:#75715e># Descriptorが取得するValue、つまり今回の場合はURI</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>rate_limit</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>unit</span>: <span style=color:#ae81ff>minute</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>requests_per_unit</span>: <span style=color:#ae81ff>10</span>
+</span></span></code></pre></div><p><strong>正規表現でDescriptorを絞り込む</strong></p><p>実践的にはより複雑なURIに対してRate Limitを書けることになるます。
+ニコニコ生放送では<code>/watch/lv12345...</code>といった具合のURIに対して制限を適用する必要があります。</p><p>この場合Descriptorの定義は正規表現を以下のように記述することで表現することができます。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>rate_limits</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>actions</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>header_value_match</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>descriptor_value</span>: <span style=color:#ae81ff>watch</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>headers</span>:
+</span></span><span style=display:flex><span>            - <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;:path&#34;</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>safe_regex_match</span>:
+</span></span><span style=display:flex><span>                <span style=color:#f92672>google_re2</span>: {}
+</span></span><span style=display:flex><span>                <span style=color:#f92672>regex</span>: <span style=color:#ae81ff>/watch/(lv\d+)</span>
+</span></span></code></pre></div><p>Rate Limitは前回と同様にDescriptorに対して記述するだけで定義できます。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>descriptors</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>key</span>: <span style=color:#ae81ff>header_match</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>value</span>: <span style=color:#ae81ff>watch</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>rate_limit</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>unit</span>: <span style=color:#ae81ff>second</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>requests_per_unit</span>: <span style=color:#ae81ff>9999999</span>
+</span></span></code></pre></div><h2 id=istio-proxyとrate-limitのマイクロサービスとの連携>istio-proxyとRate Limitのマイクロサービスとの連携
+<a class=anchor href=#istio-proxy%e3%81%a8rate-limit%e3%81%ae%e3%83%9e%e3%82%a4%e3%82%af%e3%83%ad%e3%82%b5%e3%83%bc%e3%83%93%e3%82%b9%e3%81%a8%e3%81%ae%e9%80%a3%e6%90%ba>#</a></h2><p>次のようなEnvoyFilterをIngress Gatewayに対して適用しています。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>networking.istio.io/v1alpha3</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>EnvoyFilter</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>ratelimit-gateway</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>workloadSelector</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>app</span>: <span style=color:#ae81ff>istio-ingressgateway</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>configPatches</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>applyTo</span>: <span style=color:#ae81ff>HTTP_FILTER</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>match</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>context</span>: <span style=color:#ae81ff>GATEWAY</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>listener</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>filterChain</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>filter</span>:
+</span></span><span style=display:flex><span>              <span style=color:#f92672>name</span>: <span style=color:#ae81ff>envoy.filters.network.http_connection_manager</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>subFilter</span>:
+</span></span><span style=display:flex><span>                <span style=color:#f92672>name</span>: <span style=color:#ae81ff>envoy.filters.http.router</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>patch</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>operation</span>: <span style=color:#ae81ff>INSERT_BEFORE</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>value</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>name</span>: <span style=color:#ae81ff>envoy.filters.http.ratelimit</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>typed_config</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>&#34;@type&#34;: </span><span style=color:#ae81ff>type.googleapis.com/envoy.extensions.filters.http.ratelimit.v3.RateLimit</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>domain</span>: <span style=color:#ae81ff>nicolive</span>
+</span></span><span style=display:flex><span>            <span style=color:#75715e># Envoy Ratelimitとの疎通が失敗した場合など、</span>
+</span></span><span style=display:flex><span>            <span style=color:#75715e># トラフィックをUpstreamに流れるようにする</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>failure_mode_deny</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>timeout</span>: <span style=color:#ae81ff>10s</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>rate_limit_service</span>:
+</span></span><span style=display:flex><span>              <span style=color:#f92672>grpc_service</span>:
+</span></span><span style=display:flex><span>                <span style=color:#f92672>envoy_grpc</span>:
+</span></span><span style=display:flex><span>                  <span style=color:#75715e># Istioのドキュメントとここが異なる</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>cluster_name</span>: <span style=color:#ae81ff>outbound|8081||ratelimit.mynamespace.svc.cluster.local</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>authority</span>: <span style=color:#ae81ff>ratelimit.mynamespace.svc.cluster.local</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>transport_api_version</span>: <span style=color:#ae81ff>V3</span>
+</span></span></code></pre></div><p><a href=https://istio.io/latest/docs/tasks/policy-enforcement/rate-limit/>Istioのドキュメント</a>をそのまま流用した場合、
+EnvoyのCluster定義を追加する記述がありますが、これはKubernetesのServiceを以下のように定義するとEDS（Endpoint Discovery Service）によって
+利用可能な<code>cluster_name: outbound|8081||ratelimit.mynamespace.svc.cluster.local</code>が自動的に定義されます。</p><p>これにより、cluster名を<code>STATIC_DNS</code>（L4）からEDS（L7）に変更することができ、Rate LimitのPodの更新時に瞬断が発生しなくなります。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>v1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Service</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>ratelimit</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>type</span>: <span style=color:#ae81ff>ClusterIP</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>selector</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>app</span>: <span style=color:#ae81ff>ratelimit</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>app.kubernetes.io/name</span>: <span style=color:#ae81ff>ratelimit</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>http-ratelimit-svc</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>port</span>: <span style=color:#ae81ff>8080</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>targetPort</span>: <span style=color:#ae81ff>8080</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>protocol</span>: <span style=color:#ae81ff>TCP</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>grpc-ratelimit-svc</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>port</span>: <span style=color:#ae81ff>8081</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>targetPort</span>: <span style=color:#ae81ff>8081</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>protocol</span>: <span style=color:#ae81ff>TCP</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>http-debug-ratelimit-svc</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>port</span>: <span style=color:#ae81ff>6070</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>targetPort</span>: <span style=color:#ae81ff>6070</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>protocol</span>: <span style=color:#ae81ff>TCP</span>
+</span></span></code></pre></div><p>また、RateLimitとの疎通は<code>failure_mode_deny: false</code>を指定しています。
+Ingress Gatewayに対するアクセスはすべてが一度Rate LimitのPodを経由します。
+デフォルトの場合（<code>failure_mode_deny: true</code>）、何らかの理由でRate LimitのPodとの疎通が取れなくなった場合にIngress Gatewayからユーザーに対して503エラーが返るようになります。
+この影響はサービス全体に波及するためこのフラグは<code>false</code>にしています。</p><p>仮にGlobal RateLimitが機能しなくなった場合、リクエストはそのままUpstream側のマイクロサービスまで貫通しますが、
+異常なリクエストに対しては次に紹介するLocal Ratelimitによって多重の防御が用意されています。</p></article><footer class=book-footer><div class="flex flex-wrap justify-between"></div><script>(function(){function e(n){const e=window.getSelection(),t=document.createRange();t.selectNodeContents(n),e.removeAllRanges(),e.addRange(t)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script></footer><div class=book-comments></div><label for=menu-control class="hidden book-menu-overlay"></label></div><aside class=book-toc><div class=book-toc-content><nav id=TableOfContents><ul><li><a href=#global-ratelimitの設定>Global Ratelimitの設定</a><ul><li><a href=#path単位でrate-limitをかける><code>:path</code>単位でRate Limitをかける</a></li></ul></li><li><a href=#istio-proxyとrate-limitのマイクロサービスとの連携>istio-proxyとRate Limitのマイクロサービスとの連携</a></li></ul></nav></div></aside></main></body></html>

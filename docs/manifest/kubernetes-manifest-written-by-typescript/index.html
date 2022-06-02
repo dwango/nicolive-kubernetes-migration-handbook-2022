@@ -1,0 +1,171 @@
+<!doctype html><html lang=ja-jp dir=ltr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=description content="TypeScriptでKubernetesのmanifestを記述する #  ここでは基本的な書き方について紹介します。
+基本的な書き方 #  NodeJSで動かすスクリプトとして次のようなに記述してきます。 これをts-nodeなどで実行するとdeployment.ymlが出力され、kubectl apply -f deployment.ymlとすることでKubernetes上にPodが起動します。
+import * as fs from &#34;fs&#34;; import * as yaml from &#34;js-yaml&#34;; import type { Schemas } from &#34;@himenon/kubernetes-typescript-openapi/v1.22.3&#34;;  const podTemplateSpec: Schemas.io$k8s$api$core$v1$PodTemplateSpec = {  metadata: {  labels: {  app: &#34;nginx&#34;,  },  },  spec: {  containers: [  {  name: &#34;nginx&#34;,  image: &#34;nginx:1.14.2&#34;,  ports: [  {  containerPort: 80,  },  ],  },  ],  }, };  const deployment: Schemas."><meta name=theme-color content="#FFFFFF"><meta name=color-scheme content="light dark"><meta property="og:title" content="TypeScriptでKubernetesのmanifestを記述する"><meta property="og:description" content="TypeScriptでKubernetesのmanifestを記述する #  ここでは基本的な書き方について紹介します。
+基本的な書き方 #  NodeJSで動かすスクリプトとして次のようなに記述してきます。 これをts-nodeなどで実行するとdeployment.ymlが出力され、kubectl apply -f deployment.ymlとすることでKubernetes上にPodが起動します。
+import * as fs from &#34;fs&#34;; import * as yaml from &#34;js-yaml&#34;; import type { Schemas } from &#34;@himenon/kubernetes-typescript-openapi/v1.22.3&#34;;  const podTemplateSpec: Schemas.io$k8s$api$core$v1$PodTemplateSpec = {  metadata: {  labels: {  app: &#34;nginx&#34;,  },  },  spec: {  containers: [  {  name: &#34;nginx&#34;,  image: &#34;nginx:1.14.2&#34;,  ports: [  {  containerPort: 80,  },  ],  },  ],  }, };  const deployment: Schemas."><meta property="og:type" content="article"><meta property="og:url" content="https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022/docs/manifest/kubernetes-manifest-written-by-typescript/"><meta property="article:section" content="docs"><meta property="article:modified_time" content="2022-06-02T17:14:12+09:00"><title>TypeScriptでKubernetesのmanifestを記述する | ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022</title><link rel=manifest href=/nicolive-kubernetes-migration-handbook-2022/manifest.json><link rel=icon href=/nicolive-kubernetes-migration-handbook-2022/favicon.png type=image/x-icon><link rel=stylesheet href=/nicolive-kubernetes-migration-handbook-2022/book.min.fcc3ce6727c2b2b91bc9a518374b77e2097222f7fe4dc0016db675da315da284.css integrity="sha256-/MPOZyfCsrkbyaUYN0t34glyIvf+TcABbbZ12jFdooQ=" crossorigin=anonymous><script defer src=/nicolive-kubernetes-migration-handbook-2022/flexsearch.min.js></script>
+<script defer src=/nicolive-kubernetes-migration-handbook-2022/en.search.min.316dfec6e198e1d4e40887d7250e8b92d7bde449cce89841b69417adbdc06208.js integrity="sha256-MW3+xuGY4dTkCIfXJQ6Lkte95EnM6JhBtpQXrb3AYgg=" crossorigin=anonymous></script>
+<script defer src=/nicolive-kubernetes-migration-handbook-2022/sw.min.dd2d6bf3c93d9223651db8ea5867f95fed658724b711f7b9e9e1d8aa46a84ebd.js integrity="sha256-3S1r88k9kiNlHbjqWGf5X+1lhyS3Efe56eHYqkaoTr0=" crossorigin=anonymous></script></head><body dir=ltr><input type=checkbox class="hidden toggle" id=menu-control>
+<input type=checkbox class="hidden toggle" id=toc-control><main class="container flex"><aside class=book-menu><div class=book-menu-content><nav><h2 class=book-brand><a class="flex align-center" href=/nicolive-kubernetes-migration-handbook-2022/><span>ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022</span></a></h2><div class=book-search><input type=text id=book-search-input placeholder=Search aria-label=Search maxlength=64 data-hotkeys=s/><div class="book-search-spinner hidden"></div><ul id=book-search-results></ul></div><ul><li><span>ネットワーク</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/network/architecture/>移行前・移行中・移行後のネットワーク設計</a></li></ul></li><li><span>Manifest管理</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/manifest-management/>KubernetesのManifest管理</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/kubernetes-manifest-written-by-typescript/ class=active>TypeScriptでKubernetesのmanifestを記述する</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/kubernetes-manifest-generator-architecture/>TypeScriptでManifestを生成するGeneratorのアーキテクチャ</a></li></ul></li><li><span>Continuous Delivery</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/argo-cd/>Argo CDの利用</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/argo-rollouts/>Argo Rolloutsの利用</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/slack-bot/>Slack Botによる自動化</a></li></ul></li><li><span>Service Mesh (Istio)</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/istio/>BFFとIstio</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/access-log/>アクセスログ</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/traffic-management/>Istio Ingress Gatewayの設定</a></li></ul></li><li><span>Rate Limit</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/global-ratelimit/>Global RateLimit</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/local-ratelimit/>Local RateLimit</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/ratelimit-is-unless/>RateLimitで負荷の上昇を防げないパターン</a></li></ul></li><li><span>スケーリング</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/scalability/horizontal-pod-autoscaler/>水平スケール</a></li></ul></li><li><span>負荷</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/load-test/>負荷試験</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/monitoring/>モニタリング</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/load-balancing/>負荷分散</a></li></ul></li><li><span>Docker SwarmからKubernetesへの移行</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/migrate-practice/migrate-docker-swarm-to-kubernetes/>移行の実施</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/migrate-practice/application/>アプリケーションの移行</a></li></ul></li></ul></nav><script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script></div></aside><div class=book-page><header class=book-header><div class="flex align-center justify-between"><label for=menu-control><img src=/nicolive-kubernetes-migration-handbook-2022/svg/menu.svg class=book-icon alt=Menu></label>
+<strong>TypeScriptでKubernetesのmanifestを記述する</strong>
+<label for=toc-control><img src=/nicolive-kubernetes-migration-handbook-2022/svg/toc.svg class=book-icon alt="Table of Contents"></label></div><aside class="hidden clearfix"><nav id=TableOfContents><ul><li><a href=#基本的な書き方>基本的な書き方</a></li><li><a href=#typescriptで記述する特徴>TypeScriptで記述する特徴</a><ul><li><a href=#yamlの記法に悩まれなくて済む>YAMLの記法に悩まれなくて済む</a></li><li><a href=#コメントが書きやすい>コメントが書きやすい</a></li><li><a href=#変数が依存関係を表す様になる>「変数」が依存関係を表す様になる</a></li><li><a href=#テンプレートの表現力が増す>テンプレートの表現力が増す</a></li><li><a href=#generator内部でerrorをthrowすることがテストになる>Generator内部で<code>Error</code>を<code>throw</code>することがテストになる</a></li></ul></li></ul></nav></aside></header><article class=markdown><h1 id=typescriptでkubernetesのmanifestを記述する>TypeScriptでKubernetesのmanifestを記述する
+<a class=anchor href=#typescript%e3%81%a7kubernetes%e3%81%aemanifest%e3%82%92%e8%a8%98%e8%bf%b0%e3%81%99%e3%82%8b>#</a></h1><p>ここでは基本的な書き方について紹介します。</p><h2 id=基本的な書き方>基本的な書き方
+<a class=anchor href=#%e5%9f%ba%e6%9c%ac%e7%9a%84%e3%81%aa%e6%9b%b8%e3%81%8d%e6%96%b9>#</a></h2><p>NodeJSで動かすスクリプトとして次のようなに記述してきます。
+これを<code>ts-node</code>などで実行すると<code>deployment.yml</code>が出力され、<code>kubectl apply -f deployment.yml</code>とすることでKubernetes上にPodが起動します。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ts data-lang=ts><span style=display:flex><span><span style=color:#66d9ef>import</span> <span style=color:#f92672>*</span> <span style=color:#66d9ef>as</span> <span style=color:#a6e22e>fs</span> <span style=color:#66d9ef>from</span> <span style=color:#e6db74>&#34;fs&#34;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> <span style=color:#f92672>*</span> <span style=color:#66d9ef>as</span> <span style=color:#a6e22e>yaml</span> <span style=color:#66d9ef>from</span> <span style=color:#e6db74>&#34;js-yaml&#34;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> <span style=color:#66d9ef>type</span> { <span style=color:#a6e22e>Schemas</span> } <span style=color:#66d9ef>from</span> <span style=color:#e6db74>&#34;@himenon/kubernetes-typescript-openapi/v1.22.3&#34;</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>podTemplateSpec</span>: <span style=color:#66d9ef>Schemas.io$k8s$api$core$v1$PodTemplateSpec</span> <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>metadata</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>labels</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>app</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;nginx&#34;</span>,
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>  },
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>spec</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>containers</span><span style=color:#f92672>:</span> [
+</span></span><span style=display:flex><span>      {
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>name</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;nginx&#34;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>image</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;nginx:1.14.2&#34;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>ports</span><span style=color:#f92672>:</span> [
+</span></span><span style=display:flex><span>          {
+</span></span><span style=display:flex><span>            <span style=color:#a6e22e>containerPort</span>: <span style=color:#66d9ef>80</span>,
+</span></span><span style=display:flex><span>          },
+</span></span><span style=display:flex><span>        ],
+</span></span><span style=display:flex><span>      },
+</span></span><span style=display:flex><span>    ],
+</span></span><span style=display:flex><span>  },
+</span></span><span style=display:flex><span>};
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>deployment</span>: <span style=color:#66d9ef>Schemas.io$k8s$api$apps$v1$Deployment</span> <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>apiVersion</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;apps/v1&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>kind</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;Deployment&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>metadata</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>name</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;nginx-deployment&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>labels</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>app</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;nginx&#34;</span>,
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>  },
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>spec</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>replicas</span>: <span style=color:#66d9ef>3</span>,
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>selector</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>matchLabels</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>app</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;nginx&#34;</span>,
+</span></span><span style=display:flex><span>      },
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>template</span>: <span style=color:#66d9ef>podTemplateSpec</span>,
+</span></span><span style=display:flex><span>  },
+</span></span><span style=display:flex><span>};
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>text</span> <span style=color:#f92672>=</span> <span style=color:#a6e22e>yaml</span>.<span style=color:#a6e22e>dump</span>(<span style=color:#a6e22e>deployment</span>, { <span style=color:#a6e22e>noRefs</span>: <span style=color:#66d9ef>true</span>, <span style=color:#a6e22e>lineWidth</span>: <span style=color:#66d9ef>144</span> });
+</span></span><span style=display:flex><span><span style=color:#a6e22e>fs</span>.<span style=color:#a6e22e>writeFileSync</span>(<span style=color:#e6db74>&#34;deployment.yml&#34;</span>, <span style=color:#a6e22e>text</span>, <span style=color:#e6db74>&#34;utf-8&#34;</span>);
+</span></span></code></pre></div><h2 id=typescriptで記述する特徴>TypeScriptで記述する特徴
+<a class=anchor href=#typescript%e3%81%a7%e8%a8%98%e8%bf%b0%e3%81%99%e3%82%8b%e7%89%b9%e5%be%b4>#</a></h2><p>TypeScriptで記述したときの特徴を紹介します。</p><h3 id=yamlの記法に悩まれなくて済む>YAMLの記法に悩まれなくて済む
+<a class=anchor href=#yaml%e3%81%ae%e8%a8%98%e6%b3%95%e3%81%ab%e6%82%a9%e3%81%be%e3%82%8c%e3%81%aa%e3%81%8f%e3%81%a6%e6%b8%88%e3%82%80>#</a></h3><p>まず一番わかりやすいのはYAMLの記法のブレがなくなります。
+YAMLは出力された結果であり、その結果を出力する処理が記法を規格化するためYAMLの記法に関する一切のレビューが不要になります。</p><ol><li>spaceかtab indentか</li><li>indentはspace 2か4か</li><li>複数行コメントは<code>|</code>か<code>></code>のどちらで初めるか</li><li>アルファベット順にソートするか</li></ol><p>など。これらのことを一切考える必要がありません。</p><h3 id=コメントが書きやすい>コメントが書きやすい
+<a class=anchor href=#%e3%82%b3%e3%83%a1%e3%83%b3%e3%83%88%e3%81%8c%e6%9b%b8%e3%81%8d%e3%82%84%e3%81%99%e3%81%84>#</a></h3><p>TypeScriptのコードコメントがそのまま利用することができます。
+エディタ上で変数名などをホバーしたときにコメントが見えるなどの可視化支援を受けることができます。</p><p>また、そのままドキュメントになるためマニフェストとドキュメントの乖離を防ぐことができ、ロストテクノロジーになることに対する予防措置が同時に実施できます。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ts data-lang=ts><span style=display:flex><span><span style=color:#75715e>/** podTemplateに対するコメント */</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>podTemplateSpec</span>: <span style=color:#66d9ef>Schemas.io$k8s$api$core$v1$PodTemplateSpec</span> <span style=color:#f92672>=</span> {};
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>deployment</span>: <span style=color:#66d9ef>Schemas.io$k8s$api$apps$v1$Deployment</span> <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>apiVersion</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;apps/v1&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>kind</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;Deployment&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>metadata</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>name</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;nginx-deployment&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>labels</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>      <span style=color:#75715e>/** このラベルを付ける理由.... */</span>
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>app</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;nginx&#34;</span>,
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>  },
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>spec</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>    <span style=color:#75715e>/** replicasが3で妥当な理由... */</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>replicas</span>: <span style=color:#66d9ef>3</span>,
+</span></span><span style=display:flex><span>    <span style=color:#75715e>/** このSelectorを付ける理由.... */</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>selector</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>matchLabels</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>app</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;nginx&#34;</span>,
+</span></span><span style=display:flex><span>      },
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>template</span>: <span style=color:#66d9ef>podTemplateSpec</span>,
+</span></span><span style=display:flex><span>  },
+</span></span><span style=display:flex><span>};
+</span></span></code></pre></div><h3 id=変数が依存関係を表す様になる>「変数」が依存関係を表す様になる
+<a class=anchor href=#%e5%a4%89%e6%95%b0%e3%81%8c%e4%be%9d%e5%ad%98%e9%96%a2%e4%bf%82%e3%82%92%e8%a1%a8%e3%81%99%e6%a7%98%e3%81%ab%e3%81%aa%e3%82%8b>#</a></h3><p>Kubernetesで基本的なServiceとDeploymentというセットを考えたとき、Service間通信するためにはServiceのSelectorをPodのLabelと一致させる必要があります。これをTypeScriptで表現する場合、SelectorとLabelの部分を変数化してしまえば確実に疎通ができるServiceとDeploymentのマニフェストを生成することができます。</p><p>他にも<a href=https://kubernetes.io/ja/docs/concepts/overview/working-with-objects/common-labels/>推奨されるラベル</a>にある<code>app.kubernetes.io/version</code>なども漏れなく適切に指定されるようになります。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ts data-lang=ts><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>Namespace</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;mynamespace&#34;</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>export</span> <span style=color:#66d9ef>const</span> <span style=color:#a6e22e>generateService</span> <span style=color:#f92672>=</span> (<span style=color:#a6e22e>applicationName</span>: <span style=color:#66d9ef>string</span>, <span style=color:#a6e22e>applicationVersion</span>: <span style=color:#66d9ef>string</span>)<span style=color:#f92672>:</span> <span style=color:#a6e22e>Schemas</span>.<span style=color:#a6e22e>io$k8s$api$core$v1$Service</span> <span style=color:#f92672>=&gt;</span> {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>apiVersion</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;v1&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>kind</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;Service&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>metadata</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>name</span>: <span style=color:#66d9ef>applicationName</span>,
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>namespace</span><span style=color:#f92672>:</span> <span style=color:#a6e22e>Namespace</span>,
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>spec</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>type</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;ClusterIP&#34;</span>,
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>selector</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>app</span>: <span style=color:#66d9ef>applicationName</span>,
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;app.kubernetes.io/name&#34;</span><span style=color:#f92672>:</span> <span style=color:#a6e22e>applicationName</span>,
+</span></span><span style=display:flex><span>      },
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>ports</span><span style=color:#f92672>:</span> [
+</span></span><span style=display:flex><span>        {
+</span></span><span style=display:flex><span>          <span style=color:#a6e22e>name</span><span style=color:#f92672>:</span> <span style=color:#e6db74>`http-</span><span style=color:#e6db74>${</span><span style=color:#a6e22e>applicationName</span><span style=color:#e6db74>}</span><span style=color:#e6db74>-svc`</span>,
+</span></span><span style=display:flex><span>          <span style=color:#a6e22e>port</span>: <span style=color:#66d9ef>80</span>,
+</span></span><span style=display:flex><span>          <span style=color:#a6e22e>targetPort</span>: <span style=color:#66d9ef>80</span>,
+</span></span><span style=display:flex><span>        },
+</span></span><span style=display:flex><span>      ],
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>  };
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>export</span> <span style=color:#66d9ef>const</span> <span style=color:#a6e22e>generateDeployment</span> <span style=color:#f92672>=</span> (<span style=color:#a6e22e>applicationName</span>: <span style=color:#66d9ef>string</span>, <span style=color:#a6e22e>applicationVersion</span>: <span style=color:#66d9ef>string</span>)<span style=color:#f92672>:</span> <span style=color:#a6e22e>Schemas</span>.<span style=color:#a6e22e>io$k8s$api$apps$v1$Deployment</span> <span style=color:#f92672>=&gt;</span> {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>apiVersion</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;apps/v1&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>kind</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;Deployment&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>metadata</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>name</span>: <span style=color:#66d9ef>applicationName</span>,
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>namespace</span><span style=color:#f92672>:</span> <span style=color:#a6e22e>Namespace</span>,
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>labels</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>app</span>: <span style=color:#66d9ef>applicationName</span>,
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;app.kubernetes.io/name&#34;</span><span style=color:#f92672>:</span> <span style=color:#a6e22e>applicationName</span>,
+</span></span><span style=display:flex><span>      },
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>annotations</span><span style=color:#f92672>:</span> {},
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>spec</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>selector</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>matchLabels</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>          <span style=color:#e6db74>&#34;app.kubernetes.io/name&#34;</span><span style=color:#f92672>:</span> <span style=color:#a6e22e>applicationName</span>,
+</span></span><span style=display:flex><span>        },
+</span></span><span style=display:flex><span>      },
+</span></span><span style=display:flex><span>      <span style=color:#75715e>/** 省略 */</span>
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>  };
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>applicationName</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;my-nginx&#34;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>applicationVersion</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;1.14.2&#34;</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>generateService</span>(<span style=color:#a6e22e>applicationName</span>, <span style=color:#a6e22e>applicationVersion</span>);
+</span></span><span style=display:flex><span><span style=color:#a6e22e>generateDeployment</span>(<span style=color:#a6e22e>applicationName</span>, <span style=color:#a6e22e>applicationVersion</span>);
+</span></span></code></pre></div><h3 id=テンプレートの表現力が増す>テンプレートの表現力が増す
+<a class=anchor href=#%e3%83%86%e3%83%b3%e3%83%97%e3%83%ac%e3%83%bc%e3%83%88%e3%81%ae%e8%a1%a8%e7%8f%be%e5%8a%9b%e3%81%8c%e5%a2%97%e3%81%99>#</a></h3><p>例えばNodeJSやGo Lang、Scalaなど様々な言語で記述されているマイクロサービスの基本的なDeploymentのテンプレートなども用意できるようになります。これは例えば<code>/a</code>と<code>/b</code>のエンドポイントが同じサーバーから提供されているが、水平スケールする単位やCPU/MEMなどの各種リソースを分離して管理したい場合にManifestを分割したい場合に大いに役立ちます。うまくManifestのGeneratorが設計されていれば数分のオーダーで分割ができ、即日デプロイすることができます。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ts data-lang=ts><span style=display:flex><span><span style=color:#66d9ef>export</span> <span style=color:#66d9ef>const</span> <span style=color:#a6e22e>generateNodeJsDeployment</span> <span style=color:#f92672>=</span> ()<span style=color:#f92672>:</span><span style=color:#a6e22e>Schemas</span>.<span style=color:#a6e22e>io$k8s$api$apps$v1$Deployment</span> <span style=color:#f92672>=&gt;</span> {};
+</span></span><span style=display:flex><span><span style=color:#66d9ef>export</span> <span style=color:#66d9ef>const</span> <span style=color:#a6e22e>generateRubyOnRailsDeployment</span> <span style=color:#f92672>=</span> ()<span style=color:#f92672>:</span><span style=color:#a6e22e>Schemas</span>.<span style=color:#a6e22e>io$k8s$api$apps$v1$Deployment</span> <span style=color:#f92672>=&gt;</span> {};
+</span></span><span style=display:flex><span><span style=color:#66d9ef>export</span> <span style=color:#66d9ef>const</span> <span style=color:#a6e22e>generateScalaDeployment</span> <span style=color:#f92672>=</span> ()<span style=color:#f92672>:</span><span style=color:#a6e22e>Schemas</span>.<span style=color:#a6e22e>io$k8s$api$apps$v1$Deployment</span> <span style=color:#f92672>=&gt;</span> {};
+</span></span></code></pre></div><h3 id=generator内部でerrorをthrowすることがテストになる>Generator内部で<code>Error</code>を<code>throw</code>することがテストになる
+<a class=anchor href=#generator%e5%86%85%e9%83%a8%e3%81%a7error%e3%82%92throw%e3%81%99%e3%82%8b%e3%81%93%e3%81%a8%e3%81%8c%e3%83%86%e3%82%b9%e3%83%88%e3%81%ab%e3%81%aa%e3%82%8b>#</a></h3><p>ManifestをGenerateする際に立地なテストフレームワークは不要で、単純に<code>Exception</code>を発生させることがテストになります。
+例えば<code>Service</code>や<code>Job</code>などのリソースタイプは<code>metadata.name</code>に指定可能な文字列や文字数が決まっています（<a href=https://kubernetes.io/ja/docs/concepts/overview/working-with-objects/names/#dns-label-names>参照</a>）。</p><p>大きな変更が入った後に<code>kubectl apply</code>を実施して、この問題が発覚するとトラブルシュートの時間が掛かるため、ManifestをGenerateする際に具体的なエラーメッセージを出力して処理を中断してしまえば悩む時間が最小限にできます。
+手元でGenerateせずにPull Request投げた場合はCIでGenerateを再度走らせてテストを実施することができます。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ts data-lang=ts><span style=display:flex><span><span style=color:#66d9ef>export</span> <span style=color:#66d9ef>const</span> <span style=color:#a6e22e>validateMetadataName</span> <span style=color:#f92672>=</span> (<span style=color:#a6e22e>text</span>: <span style=color:#66d9ef>string</span>, <span style=color:#a6e22e>throwError?</span>: <span style=color:#66d9ef>true</span>)<span style=color:#f92672>:</span> <span style=color:#66d9ef>string</span> <span style=color:#f92672>=&gt;</span> {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (<span style=color:#a6e22e>throwError</span> <span style=color:#f92672>&amp;&amp;</span> <span style=color:#a6e22e>text</span>.<span style=color:#a6e22e>length</span> <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>63</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>throw</span> <span style=color:#66d9ef>new</span> Error(<span style=color:#e6db74>`May not be deployed correctly because it exceeds 63 characters.</span><span style=color:#960050;background-color:#1e0010>\</span><span style=color:#e6db74>nValue: &#34;</span><span style=color:#e6db74>${</span><span style=color:#a6e22e>text</span><span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;`</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> <span style=color:#a6e22e>text</span>.<span style=color:#a6e22e>slice</span>(<span style=color:#ae81ff>0</span>, <span style=color:#ae81ff>63</span>);
+</span></span><span style=display:flex><span>};
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>export</span> <span style=color:#66d9ef>const</span> <span style=color:#a6e22e>generateJob</span> <span style=color:#f92672>=</span> (<span style=color:#a6e22e>applicationName</span>: <span style=color:#66d9ef>string</span>)<span style=color:#f92672>:</span> <span style=color:#a6e22e>Schemas</span>.<span style=color:#a6e22e>io$k8s$api$batch$v1$Job</span> <span style=color:#f92672>=&gt;</span> {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>apiVersion</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;batch/v1&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>kind</span><span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;Job&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>metadata</span><span style=color:#f92672>:</span> {
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>name</span>: <span style=color:#66d9ef>validateMetadataName</span>(<span style=color:#a6e22e>applicationName</span>, <span style=color:#66d9ef>true</span>),
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>  };
+</span></span><span style=display:flex><span>};
+</span></span></code></pre></div></article><footer class=book-footer><div class="flex flex-wrap justify-between"></div><script>(function(){function e(n){const e=window.getSelection(),t=document.createRange();t.selectNodeContents(n),e.removeAllRanges(),e.addRange(t)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script></footer><div class=book-comments></div><label for=menu-control class="hidden book-menu-overlay"></label></div><aside class=book-toc><div class=book-toc-content><nav id=TableOfContents><ul><li><a href=#基本的な書き方>基本的な書き方</a></li><li><a href=#typescriptで記述する特徴>TypeScriptで記述する特徴</a><ul><li><a href=#yamlの記法に悩まれなくて済む>YAMLの記法に悩まれなくて済む</a></li><li><a href=#コメントが書きやすい>コメントが書きやすい</a></li><li><a href=#変数が依存関係を表す様になる>「変数」が依存関係を表す様になる</a></li><li><a href=#テンプレートの表現力が増す>テンプレートの表現力が増す</a></li><li><a href=#generator内部でerrorをthrowすることがテストになる>Generator内部で<code>Error</code>を<code>throw</code>することがテストになる</a></li></ul></li></ul></nav></div></aside></main></body></html>

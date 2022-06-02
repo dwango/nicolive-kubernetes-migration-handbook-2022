@@ -1,0 +1,126 @@
+<!doctype html><html lang=ja-jp dir=ltr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=description content="アプリケーションの移行 #  Kubernetes移行にあたりBFFサーバーで調整した内容を紹介します。
+Graceful Shutdown #  プロセス終了命令(SIGTERM)などのシグナルを受け取ったときに、サーバーに残っているリクエストがレスポンスを返し終わってからプロセスを終了する仕組みです。 これはKubernetesでなくても実装すべき内容で、安全に処理を終わらせるために必要です。
+expressでの実装例は次のとおりです。
+import * as express from &#34;express&#34;;  const app = express();  const httpServer = app.listen(process.env.PORT || 80);  // SIGNALを受け取る process.on(&#34;SIGTERM&#34;, () => {  httpServer.close(); }); process.onでSIGNALを受け取ることができるため、そこでHTTP ServerをCloseするだけになります。 他にもWebSocket Serverを起動している場合もここでclose処理を実施すると安全に終了できます。
+静的リソースのアップロード #  静的リソースはAmazon S3にアップロードされたファイルをCDN(CloudFront)から配信する形式を取っています。 そのため、S3にアップロードする処理が必要で、移行前はJenkinsでこれを実行していました。
+静的リソースはこれまでJenkinsのタスクによってアップロードしていましたが、KubernetesのJobとして移行しました。
+具体的には、アプリケーションのCIによってリリース用のnpmパッケージが作成され、Private Registryにアップロードされたり、 ものによってはGitHubのRelease Assetsにアップロードされたりしています。
+Kubernetes上のJobは
+ npm packageにリリースする静的リソースをダウンロードし、 静的リソースのホスティングに本当に必要なファイルだけを抽出し、 S3にアップロード  という処理を実施しています。
+内部の処理は環境変数で処理できるように実装されており、npmパッケージとアップロード先のS3の保存先を選ぶことができます。 また、Argo CDのSync Waveと組み合わせて、 アプリケーションのDeploymentがApplyされるより前にこのJobを実行するように順序を決めることでクリティカルパスを形成することができます。 以下は静的リソースのアップロードJobの例です。
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40  apiVersion: batch/v1 kind: Job metadata:  name: static-resource-upload-job-v1."><meta name=theme-color content="#FFFFFF"><meta name=color-scheme content="light dark"><meta property="og:title" content="アプリケーションの移行"><meta property="og:description" content="アプリケーションの移行 #  Kubernetes移行にあたりBFFサーバーで調整した内容を紹介します。
+Graceful Shutdown #  プロセス終了命令(SIGTERM)などのシグナルを受け取ったときに、サーバーに残っているリクエストがレスポンスを返し終わってからプロセスを終了する仕組みです。 これはKubernetesでなくても実装すべき内容で、安全に処理を終わらせるために必要です。
+expressでの実装例は次のとおりです。
+import * as express from &#34;express&#34;;  const app = express();  const httpServer = app.listen(process.env.PORT || 80);  // SIGNALを受け取る process.on(&#34;SIGTERM&#34;, () => {  httpServer.close(); }); process.onでSIGNALを受け取ることができるため、そこでHTTP ServerをCloseするだけになります。 他にもWebSocket Serverを起動している場合もここでclose処理を実施すると安全に終了できます。
+静的リソースのアップロード #  静的リソースはAmazon S3にアップロードされたファイルをCDN(CloudFront)から配信する形式を取っています。 そのため、S3にアップロードする処理が必要で、移行前はJenkinsでこれを実行していました。
+静的リソースはこれまでJenkinsのタスクによってアップロードしていましたが、KubernetesのJobとして移行しました。
+具体的には、アプリケーションのCIによってリリース用のnpmパッケージが作成され、Private Registryにアップロードされたり、 ものによってはGitHubのRelease Assetsにアップロードされたりしています。
+Kubernetes上のJobは
+ npm packageにリリースする静的リソースをダウンロードし、 静的リソースのホスティングに本当に必要なファイルだけを抽出し、 S3にアップロード  という処理を実施しています。
+内部の処理は環境変数で処理できるように実装されており、npmパッケージとアップロード先のS3の保存先を選ぶことができます。 また、Argo CDのSync Waveと組み合わせて、 アプリケーションのDeploymentがApplyされるより前にこのJobを実行するように順序を決めることでクリティカルパスを形成することができます。 以下は静的リソースのアップロードJobの例です。
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40  apiVersion: batch/v1 kind: Job metadata:  name: static-resource-upload-job-v1."><meta property="og:type" content="article"><meta property="og:url" content="https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022/docs/migrate-practice/application/"><meta property="article:section" content="docs"><meta property="article:modified_time" content="2022-06-02T17:14:12+09:00"><title>アプリケーションの移行 | ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022</title><link rel=manifest href=/nicolive-kubernetes-migration-handbook-2022/manifest.json><link rel=icon href=/nicolive-kubernetes-migration-handbook-2022/favicon.png type=image/x-icon><link rel=stylesheet href=/nicolive-kubernetes-migration-handbook-2022/book.min.fcc3ce6727c2b2b91bc9a518374b77e2097222f7fe4dc0016db675da315da284.css integrity="sha256-/MPOZyfCsrkbyaUYN0t34glyIvf+TcABbbZ12jFdooQ=" crossorigin=anonymous><script defer src=/nicolive-kubernetes-migration-handbook-2022/flexsearch.min.js></script>
+<script defer src=/nicolive-kubernetes-migration-handbook-2022/en.search.min.316dfec6e198e1d4e40887d7250e8b92d7bde449cce89841b69417adbdc06208.js integrity="sha256-MW3+xuGY4dTkCIfXJQ6Lkte95EnM6JhBtpQXrb3AYgg=" crossorigin=anonymous></script>
+<script defer src=/nicolive-kubernetes-migration-handbook-2022/sw.min.dd2d6bf3c93d9223651db8ea5867f95fed658724b711f7b9e9e1d8aa46a84ebd.js integrity="sha256-3S1r88k9kiNlHbjqWGf5X+1lhyS3Efe56eHYqkaoTr0=" crossorigin=anonymous></script></head><body dir=ltr><input type=checkbox class="hidden toggle" id=menu-control>
+<input type=checkbox class="hidden toggle" id=toc-control><main class="container flex"><aside class=book-menu><div class=book-menu-content><nav><h2 class=book-brand><a class="flex align-center" href=/nicolive-kubernetes-migration-handbook-2022/><span>ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022</span></a></h2><div class=book-search><input type=text id=book-search-input placeholder=Search aria-label=Search maxlength=64 data-hotkeys=s/><div class="book-search-spinner hidden"></div><ul id=book-search-results></ul></div><ul><li><span>ネットワーク</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/network/architecture/>移行前・移行中・移行後のネットワーク設計</a></li></ul></li><li><span>Manifest管理</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/manifest-management/>KubernetesのManifest管理</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/kubernetes-manifest-written-by-typescript/>TypeScriptでKubernetesのmanifestを記述する</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/kubernetes-manifest-generator-architecture/>TypeScriptでManifestを生成するGeneratorのアーキテクチャ</a></li></ul></li><li><span>Continuous Delivery</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/argo-cd/>Argo CDの利用</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/argo-rollouts/>Argo Rolloutsの利用</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/slack-bot/>Slack Botによる自動化</a></li></ul></li><li><span>Service Mesh (Istio)</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/istio/>BFFとIstio</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/access-log/>アクセスログ</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/traffic-management/>Istio Ingress Gatewayの設定</a></li></ul></li><li><span>Rate Limit</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/global-ratelimit/>Global RateLimit</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/local-ratelimit/>Local RateLimit</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/ratelimit-is-unless/>RateLimitで負荷の上昇を防げないパターン</a></li></ul></li><li><span>スケーリング</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/scalability/horizontal-pod-autoscaler/>水平スケール</a></li></ul></li><li><span>負荷</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/load-test/>負荷試験</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/monitoring/>モニタリング</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/load-balancing/>負荷分散</a></li></ul></li><li><span>Docker SwarmからKubernetesへの移行</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/migrate-practice/migrate-docker-swarm-to-kubernetes/>移行の実施</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/migrate-practice/application/ class=active>アプリケーションの移行</a></li></ul></li></ul></nav><script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script></div></aside><div class=book-page><header class=book-header><div class="flex align-center justify-between"><label for=menu-control><img src=/nicolive-kubernetes-migration-handbook-2022/svg/menu.svg class=book-icon alt=Menu></label>
+<strong>アプリケーションの移行</strong>
+<label for=toc-control><img src=/nicolive-kubernetes-migration-handbook-2022/svg/toc.svg class=book-icon alt="Table of Contents"></label></div><aside class="hidden clearfix"><nav id=TableOfContents><ul><li><a href=#graceful-shutdown>Graceful Shutdown</a></li><li><a href=#静的リソースのアップロード>静的リソースのアップロード</a></li></ul></nav></aside></header><article class=markdown><h1 id=アプリケーションの移行>アプリケーションの移行
+<a class=anchor href=#%e3%82%a2%e3%83%97%e3%83%aa%e3%82%b1%e3%83%bc%e3%82%b7%e3%83%a7%e3%83%b3%e3%81%ae%e7%a7%bb%e8%a1%8c>#</a></h1><p>Kubernetes移行にあたりBFFサーバーで調整した内容を紹介します。</p><h2 id=graceful-shutdown>Graceful Shutdown
+<a class=anchor href=#graceful-shutdown>#</a></h2><p>プロセス終了命令(<code>SIGTERM</code>)などのシグナルを受け取ったときに、サーバーに残っているリクエストがレスポンスを返し終わってからプロセスを終了する仕組みです。
+これはKubernetesでなくても実装すべき内容で、安全に処理を終わらせるために必要です。</p><p>expressでの実装例は次のとおりです。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ts data-lang=ts><span style=display:flex><span><span style=color:#66d9ef>import</span> <span style=color:#f92672>*</span> <span style=color:#66d9ef>as</span> <span style=color:#a6e22e>express</span> <span style=color:#66d9ef>from</span> <span style=color:#e6db74>&#34;express&#34;</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>app</span> <span style=color:#f92672>=</span> <span style=color:#a6e22e>express</span>();
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>httpServer</span> <span style=color:#f92672>=</span> <span style=color:#a6e22e>app</span>.<span style=color:#a6e22e>listen</span>(<span style=color:#a6e22e>process</span>.<span style=color:#a6e22e>env</span>.<span style=color:#a6e22e>PORT</span> <span style=color:#f92672>||</span> <span style=color:#ae81ff>80</span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>// SIGNALを受け取る
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#a6e22e>process</span>.<span style=color:#a6e22e>on</span>(<span style=color:#e6db74>&#34;SIGTERM&#34;</span>, () <span style=color:#f92672>=&gt;</span> {
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>httpServer</span>.<span style=color:#a6e22e>close</span>();
+</span></span><span style=display:flex><span>});
+</span></span></code></pre></div><p><code>process.on</code>でSIGNALを受け取ることができるため、そこでHTTP ServerをCloseするだけになります。
+他にもWebSocket Serverを起動している場合もここでclose処理を実施すると安全に終了できます。</p><h2 id=静的リソースのアップロード>静的リソースのアップロード
+<a class=anchor href=#%e9%9d%99%e7%9a%84%e3%83%aa%e3%82%bd%e3%83%bc%e3%82%b9%e3%81%ae%e3%82%a2%e3%83%83%e3%83%97%e3%83%ad%e3%83%bc%e3%83%89>#</a></h2><p>静的リソースはAmazon S3にアップロードされたファイルをCDN(CloudFront)から配信する形式を取っています。
+そのため、S3にアップロードする処理が必要で、移行前はJenkinsでこれを実行していました。</p><p>静的リソースはこれまでJenkinsのタスクによってアップロードしていましたが、KubernetesのJobとして移行しました。</p><p>具体的には、アプリケーションのCIによってリリース用のnpmパッケージが作成され、Private Registryにアップロードされたり、
+ものによってはGitHubのRelease Assetsにアップロードされたりしています。</p><p>Kubernetes上のJobは</p><ol><li>npm packageにリリースする静的リソースをダウンロードし、</li><li>静的リソースのホスティングに本当に必要なファイルだけを抽出し、</li><li>S3にアップロード</li></ol><p>という処理を実施しています。</p><p><img src=../static-resource-deploy.svg alt=静的リソースのデプロイフロー></p><p>内部の処理は環境変数で処理できるように実装されており、npmパッケージとアップロード先のS3の保存先を選ぶことができます。
+また、<a href=https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/>Argo CDのSync Wave</a>と組み合わせて、
+アプリケーションのDeploymentがApplyされるより前にこのJobを実行するように順序を決めることでクリティカルパスを形成することができます。
+以下は静的リソースのアップロードJobの例です。</p><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span></span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">27
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">31
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">32
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">33
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">34
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">35
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">36
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">37
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">38
+</span></span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">39
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">40
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>batch/v1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Job</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>static-resource-upload-job-v1.0.0</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>	<span style=color:#f92672>app</span>: <span style=color:#ae81ff>static-resource-upload-job-v1.0.0</span>
+</span></span><span style=display:flex><span>	<span style=color:#f92672>version</span>: <span style=color:#ae81ff>1.0.0</span>
+</span></span><span style=display:flex><span>	<span style=color:#f92672>app.kubernetes.io/name</span>: <span style=color:#ae81ff>static-resource-upload-job</span>
+</span></span><span style=display:flex><span>	<span style=color:#f92672>app.kubernetes.io/version</span>: <span style=color:#ae81ff>1.0.0</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>annotations</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>    <span style=color:#f92672>argocd.argoproj.io/sync-wave</span>: <span style=color:#e6db74>&#34;-1&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ttlSecondsAfterFinished</span>: <span style=color:#ae81ff>86400</span> <span style=color:#75715e># 24時間後にJobのPodが消える</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>template</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>app</span>: <span style=color:#ae81ff>static-resource-upload-job-v1.0.0</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>version</span>: <span style=color:#ae81ff>1.0.0</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>app.kubernetes.io/name</span>: <span style=color:#ae81ff>static-resource-upload-job</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>app.kubernetes.io/version</span>: <span style=color:#ae81ff>1.0.0</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>annotations</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>sidecar.istio.io/inject</span>: <span style=color:#e6db74>&#34;false&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>containers</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>static-resource-upload-job</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>          <span style=color:#f92672>env</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>            - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>S3_REGION</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>              <span style=color:#f92672>value</span>: <span style=color:#e6db74>&#34;upload-region&#34;</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>            - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>S3_BUCKET</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>              <span style=color:#f92672>value</span>: <span style=color:#e6db74>&#34;upload-bucket-name&#34;</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>            - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>NPM_PACKAGE_NAME</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>              <span style=color:#f92672>value</span>: <span style=color:#e6db74>&#34;npm package name&#34;</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>            - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>NPM_PACKAGE_VERSION</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>              <span style=color:#f92672>value</span>: <span style=color:#e6db74>&#34;version&#34;</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>            - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>NPM_PACKAGE_DIST_DIR</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>              <span style=color:#f92672>value</span>: <span style=color:#ae81ff>dist</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>            - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>UPLOAD_DIST_DIR</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>              <span style=color:#f92672>value</span>: <span style=color:#e6db74>&#34;upload-dist-dir&#34;</span> <span style=color:#75715e># S3のKeyに該当</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>image</span>: <span style=color:#75715e># 静的リソースをアップロードするための処理が実装されたDocker Image</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>restartPolicy</span>: <span style=color:#ae81ff>Never</span>
+</span></span></code></pre></td></tr></table></div></div></article><footer class=book-footer><div class="flex flex-wrap justify-between"></div><script>(function(){function e(n){const e=window.getSelection(),t=document.createRange();t.selectNodeContents(n),e.removeAllRanges(),e.addRange(t)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script></footer><div class=book-comments></div><label for=menu-control class="hidden book-menu-overlay"></label></div><aside class=book-toc><div class=book-toc-content><nav id=TableOfContents><ul><li><a href=#graceful-shutdown>Graceful Shutdown</a></li><li><a href=#静的リソースのアップロード>静的リソースのアップロード</a></li></ul></nav></div></aside></main></body></html>

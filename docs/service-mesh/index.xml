@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Service Mesh (Istio) on ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022</title><link>https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/</link><description>Recent content in Service Mesh (Istio) on ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022</description><generator>Hugo -- gohugo.io</generator><language>ja-JP</language><atom:link href="https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/index.xml" rel="self" type="application/rss+xml"/><item><title>BFFとIstio</title><link>https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/istio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/istio/</guid><description>BFFとIstio # Istio の利用 # Istio は既存のマイクロサービスに対して後付で導入することができ、 通信を可観測にしたり、負荷分散を実施したり、Proxy としての機能を持っています。 Kubernetes 上で稼働するマイクロサービスの通信をよりプログラマブルに扱える機能を提供しています。
+実際に触ってみると istioが謳っているこれらの機能は有用で、サービスメッシュはKubernetesを運用する上で必要不可欠であることを実感させられます。
+さて、詳細な部分はドキュメントを読むのが望ましいですが、とっつきにくい部分もあるのでフロントエンドのエンジニアが使うと便利な機能を紹介しつつ Istio のコンポーネント紹介します。
+IstioとEnvoyの関係 # まずはIstioとEnvoyの関係について知っておく必要があります。
+Envoyはそれ自体がProxyであり、nginxやApacheなどのL7 LBと似たような機能を提供しています。 大きな違いとして、Envoy はテレメトリが標準で豊富だったり、APIによる構成変更が可能だったりプログラマブルにコントロールできる機能を豊富に持っています。 すなわち再起動をせずに構成変更が容易であり、Argo RolloutsのCanary Deployで紹介したように Traffic Weight を柔軟に変更することが可能になります。
+IstioはこのEnvoyを利用して、Kubernetes上で稼働するマイクロサービス間の通信を観測するために Control Plane から各 Pod に Sidecar として注入します。 Istioから提供されているEnvoyのDocker Imageはistio-proxyという名前で提供されており、kubectl get pod [podname]などで構成を確認するとistio-proxyという名前を確認することができます。
+Envoy 単体では通常以下のような YAML を記述して起動時に読み込ませることで Envoy の設定変更を実施します。
+https://www.envoyproxy.io/docs/envoy/latest/configuration/overview/examples Istio の場合、Envoy はすでに起動された状態で存在しているため、既存の設定が存在しています。 そのため、この構成変更をしたい場合はEnvoyFilterを利用します。
+https://istio.io/latest/docs/reference/config/networking/envoy-filter/ ただ普段書くような Traffic Management 用の設定は別のコンポーネントを利用して簡易に記述することができます。
+Component 名 役割 Gateway 受け入れ可能なホスト名、ポート番号、プロトコルなどを記述する Virtual Service PATH単位のルーティングの設定が可能。Traffic Weight の指定、Header や Query Parameter による個別のルーティング先もここで指定する。 Service Entry Kubernetes クラスタから外部へのアクセス制限など。 その他（https://istio.</description></item><item><title>アクセスログ</title><link>https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/access-log/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/access-log/</guid><description>アクセスログ # Webフロントエンドが管理するサーバーにおける最重要なシステムの一つはアクセスログです。 不正アクセスなどのセキュリティ的な側面や、会社の収益のツリー構造に関わる部分など多くの重要な情報をここから得られます。 ゆえにこの部分のシステムは信頼度が最も高い方法で実現する必要があります。
+したがって移行前のアーキテクチャをなるべく踏襲しつつ、Ingress Gatewayに近いところに配置する必要がありました。 また、ログは既存のfluentdの収集と連携する必要がありました。
+最終的に本番で稼働しているアーキテクチャは次のようになります。
+Ingress Gatewayとアクセスログ周りのアーキテクチャ # 戦略としてはIngress Gatewayの前段にnginxを配置し、クラスター外からのアクセスを最初にnginxが受けるようにしました。nginxから出力されるアクセスログはsyslogでUnix Socketを経由してfluent-bitに転送しています。 fluent-bitはsyslogをINPUTとして既存のfluentdと結合するために出力先のディレクトリとログの書き出しをコントロールしています。
+このアーキテクチャに至った経緯を紹介します。
+アクセスログの出力にnginxを利用している理由 # 今回は移行が伴っているため、なるべく低コストで移行を安全に実施したい狙いがありました。 もともとnginxからログを出力していることもあり、その実績からそのまま流用する形を取りました。
+また、envoyによるアクセスログの出力も考慮に入れましたが、Cookieなどに含まれる情報を出力するためにluaを書く必要があったり、そのパース用にスクリプト自体が保守するのが大変であるため断念しました。
+fluent-bitで収集してfluentdに渡している理由 # fluentdは移行前からあるログ収集の手段です。 fluent-bitはfluentdのC言語実装で、fluent-bitも出力先をfluentdと同じ場所に向けることは可能です。 しかしながらこれも移行をスムーズに進めるために既存のfluentdの設定を頑張ってfluent-bitに移すことはしませんでした。
+nginxからfluent-bitにUnix Socket経由でログを送信している理由 # 最初、fluent-bitをDaemonSetとして配置してIngress Gateway用のNodeに配置するようにしていました。 nginxのログをstdoutで出力し、/var/log/containers/[containerId].logに出力されるnginxのログをfluent-bitのtail INPUTを利用して収集していました。
+しかしながら、高rps環境下でtailを利用するとfluent-bitのtailが突然止まる不具合に遭遇しました。 これはissueに起票されていますが、活発でないとしてBotによって2022/04/09クローズされました。
+https://github.com/fluent/fluent-bit/issues/3947 挙動を見ているとどうやら/var/log/containersに出力されるログファイルのシンボリックリンク先である、 /var/log/pods/[pod-id]/0.logが.gzファイルにアーカイブされるときにファイルディスクリプタあたりが変更されそこでうまくfluent-bitが処理で基底なさそうだということがなんとなくわかっています。 とはいえこれを修正するためにfluent-bitにPull Requestを送って、リリースされるまでの間ログが収集できないとなると移行スケジュールに問題が発生するため別の方法を考えました。
+幸い、AWSのfluent-bitのトラブルシューティングがあったのでここを参考にしました。
+https://github.com/aws/aws-for-fluent-bit/blob/mainline/troubleshooting/debugging.md Scalingの章に高スループットでfluent-bitを運用するための方法が紹介されており、そこに「DaemonSetモデルからSidecarモデルへ」と「ログファイルのTailからLog Streamingモデルへ」の変更が有効であることが記述されていました。
+すぐにこれを採用し、最初に紹介したアーキテクチャへと変貌を遂げました
+具体的な設定 # これら理由を踏まえた上で設定は次のようになります。
+nginxの出力先の設定 # ログは取り扱いしやすいように一度JSONで出力しています。 syslogは/tmp/sidecar-nginx/sys-log.sockに対して出力しています。
+log_format json_access_format escape=json &amp;#39;{ 中略 }&amp;#39; server { access_log syslog:server=unix:/tmp/sidecar-nginx/sys-log.</description></item><item><title>Istio Ingress Gatewayの設定</title><link>https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/traffic-management/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/traffic-management/</guid><description>Istio Ingress Gatewayの設定 # Ingress Gatewayクラスター外部に対してクラスター内部のServiceに対するルーティングを公開します(Ingressとは何か)。 IstioもIngress Gatewayを提供しており、L7のルーティング設定を記述することができます。
+Istio Ingress Gatewayの設定を変更するためにはいくつかのComponentを定義する必要があり、代表的なのはドキュメント(Istio / Ingress Gateways)で紹介されているGatewayとVirtualServiceになります。 nginxやApacheのようにconfファイルを起動時に読み込む形式と違い、istioがEnvoyに対してAPI経由で設定変更を動的に変更することになります。 そのため、どのistio-proxy(GatewayもしくはSidecarとして機能しているEnvoy)に対して設定を適用させるか記述する必要があります。
+ここでは、以下の図中のIstio Ingress Gatewayに対して設定を変更します。
+hostsでルーティングを分ける # 例えばPCとスマートフォン(SP)でルーティング先を分けたい場合があります。 これを実現するためにはまずはGatewayを宣言する必要があります。 ここではわかりやすいようにPCのルーティング先をpc.example.com、SPの行き先をsp.example.comとして定義します。
+PC用Gateway
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 apiVersion: networking.istio.io/v1alpha3 kind: Gateway metadata: name: pc-example-com namespace: demo spec: selector: app.kubernetes.io/name: istio-ingressgateway app.kubernetes.io/part-of: istio servers: - port: number: 33000 name: http protocol: HTTP hosts: - pc.</description></item></channel></rss>

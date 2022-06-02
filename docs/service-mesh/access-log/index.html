@@ -1,0 +1,430 @@
+<!doctype html><html lang=ja-jp dir=ltr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=description content="アクセスログ #  Webフロントエンドが管理するサーバーにおける最重要なシステムの一つはアクセスログです。 不正アクセスなどのセキュリティ的な側面や、会社の収益のツリー構造に関わる部分など多くの重要な情報をここから得られます。 ゆえにこの部分のシステムは信頼度が最も高い方法で実現する必要があります。
+したがって移行前のアーキテクチャをなるべく踏襲しつつ、Ingress Gatewayに近いところに配置する必要がありました。 また、ログは既存のfluentdの収集と連携する必要がありました。
+最終的に本番で稼働しているアーキテクチャは次のようになります。
+Ingress Gatewayとアクセスログ周りのアーキテクチャ #  戦略としてはIngress Gatewayの前段にnginxを配置し、クラスター外からのアクセスを最初にnginxが受けるようにしました。nginxから出力されるアクセスログはsyslogでUnix Socketを経由してfluent-bitに転送しています。 fluent-bitはsyslogをINPUTとして既存のfluentdと結合するために出力先のディレクトリとログの書き出しをコントロールしています。
+このアーキテクチャに至った経緯を紹介します。
+アクセスログの出力にnginxを利用している理由 #  今回は移行が伴っているため、なるべく低コストで移行を安全に実施したい狙いがありました。 もともとnginxからログを出力していることもあり、その実績からそのまま流用する形を取りました。
+また、envoyによるアクセスログの出力も考慮に入れましたが、Cookieなどに含まれる情報を出力するためにluaを書く必要があったり、そのパース用にスクリプト自体が保守するのが大変であるため断念しました。
+fluent-bitで収集してfluentdに渡している理由 #  fluentdは移行前からあるログ収集の手段です。 fluent-bitはfluentdのC言語実装で、fluent-bitも出力先をfluentdと同じ場所に向けることは可能です。 しかしながらこれも移行をスムーズに進めるために既存のfluentdの設定を頑張ってfluent-bitに移すことはしませんでした。
+nginxからfluent-bitにUnix Socket経由でログを送信している理由 #  最初、fluent-bitをDaemonSetとして配置してIngress Gateway用のNodeに配置するようにしていました。 nginxのログをstdoutで出力し、/var/log/containers/[containerId].logに出力されるnginxのログをfluent-bitのtail INPUTを利用して収集していました。
+しかしながら、高rps環境下でtailを利用するとfluent-bitのtailが突然止まる不具合に遭遇しました。 これはissueに起票されていますが、活発でないとしてBotによって2022/04/09クローズされました。
+ https://github.com/fluent/fluent-bit/issues/3947  挙動を見ているとどうやら/var/log/containersに出力されるログファイルのシンボリックリンク先である、 /var/log/pods/[pod-id]/0.logが.gzファイルにアーカイブされるときにファイルディスクリプタあたりが変更されそこでうまくfluent-bitが処理で基底なさそうだということがなんとなくわかっています。 とはいえこれを修正するためにfluent-bitにPull Requestを送って、リリースされるまでの間ログが収集できないとなると移行スケジュールに問題が発生するため別の方法を考えました。
+幸い、AWSのfluent-bitのトラブルシューティングがあったのでここを参考にしました。
+ https://github.com/aws/aws-for-fluent-bit/blob/mainline/troubleshooting/debugging.md  Scalingの章に高スループットでfluent-bitを運用するための方法が紹介されており、そこに「DaemonSetモデルからSidecarモデルへ」と「ログファイルのTailからLog Streamingモデルへ」の変更が有効であることが記述されていました。
+すぐにこれを採用し、最初に紹介したアーキテクチャへと変貌を遂げました
+具体的な設定 #  これら理由を踏まえた上で設定は次のようになります。
+nginxの出力先の設定 #  ログは取り扱いしやすいように一度JSONで出力しています。 syslogは/tmp/sidecar-nginx/sys-log.sockに対して出力しています。
+log_format json_access_format escape=json '{ 中略 }' server {  access_log syslog:server=unix:/tmp/sidecar-nginx/sys-log."><meta name=theme-color content="#FFFFFF"><meta name=color-scheme content="light dark"><meta property="og:title" content="アクセスログ"><meta property="og:description" content="アクセスログ #  Webフロントエンドが管理するサーバーにおける最重要なシステムの一つはアクセスログです。 不正アクセスなどのセキュリティ的な側面や、会社の収益のツリー構造に関わる部分など多くの重要な情報をここから得られます。 ゆえにこの部分のシステムは信頼度が最も高い方法で実現する必要があります。
+したがって移行前のアーキテクチャをなるべく踏襲しつつ、Ingress Gatewayに近いところに配置する必要がありました。 また、ログは既存のfluentdの収集と連携する必要がありました。
+最終的に本番で稼働しているアーキテクチャは次のようになります。
+Ingress Gatewayとアクセスログ周りのアーキテクチャ #  戦略としてはIngress Gatewayの前段にnginxを配置し、クラスター外からのアクセスを最初にnginxが受けるようにしました。nginxから出力されるアクセスログはsyslogでUnix Socketを経由してfluent-bitに転送しています。 fluent-bitはsyslogをINPUTとして既存のfluentdと結合するために出力先のディレクトリとログの書き出しをコントロールしています。
+このアーキテクチャに至った経緯を紹介します。
+アクセスログの出力にnginxを利用している理由 #  今回は移行が伴っているため、なるべく低コストで移行を安全に実施したい狙いがありました。 もともとnginxからログを出力していることもあり、その実績からそのまま流用する形を取りました。
+また、envoyによるアクセスログの出力も考慮に入れましたが、Cookieなどに含まれる情報を出力するためにluaを書く必要があったり、そのパース用にスクリプト自体が保守するのが大変であるため断念しました。
+fluent-bitで収集してfluentdに渡している理由 #  fluentdは移行前からあるログ収集の手段です。 fluent-bitはfluentdのC言語実装で、fluent-bitも出力先をfluentdと同じ場所に向けることは可能です。 しかしながらこれも移行をスムーズに進めるために既存のfluentdの設定を頑張ってfluent-bitに移すことはしませんでした。
+nginxからfluent-bitにUnix Socket経由でログを送信している理由 #  最初、fluent-bitをDaemonSetとして配置してIngress Gateway用のNodeに配置するようにしていました。 nginxのログをstdoutで出力し、/var/log/containers/[containerId].logに出力されるnginxのログをfluent-bitのtail INPUTを利用して収集していました。
+しかしながら、高rps環境下でtailを利用するとfluent-bitのtailが突然止まる不具合に遭遇しました。 これはissueに起票されていますが、活発でないとしてBotによって2022/04/09クローズされました。
+ https://github.com/fluent/fluent-bit/issues/3947  挙動を見ているとどうやら/var/log/containersに出力されるログファイルのシンボリックリンク先である、 /var/log/pods/[pod-id]/0.logが.gzファイルにアーカイブされるときにファイルディスクリプタあたりが変更されそこでうまくfluent-bitが処理で基底なさそうだということがなんとなくわかっています。 とはいえこれを修正するためにfluent-bitにPull Requestを送って、リリースされるまでの間ログが収集できないとなると移行スケジュールに問題が発生するため別の方法を考えました。
+幸い、AWSのfluent-bitのトラブルシューティングがあったのでここを参考にしました。
+ https://github.com/aws/aws-for-fluent-bit/blob/mainline/troubleshooting/debugging.md  Scalingの章に高スループットでfluent-bitを運用するための方法が紹介されており、そこに「DaemonSetモデルからSidecarモデルへ」と「ログファイルのTailからLog Streamingモデルへ」の変更が有効であることが記述されていました。
+すぐにこれを採用し、最初に紹介したアーキテクチャへと変貌を遂げました
+具体的な設定 #  これら理由を踏まえた上で設定は次のようになります。
+nginxの出力先の設定 #  ログは取り扱いしやすいように一度JSONで出力しています。 syslogは/tmp/sidecar-nginx/sys-log.sockに対して出力しています。
+log_format json_access_format escape=json '{ 中略 }' server {  access_log syslog:server=unix:/tmp/sidecar-nginx/sys-log."><meta property="og:type" content="article"><meta property="og:url" content="https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/access-log/"><meta property="article:section" content="docs"><meta property="article:modified_time" content="2022-06-02T17:14:12+09:00"><title>アクセスログ | ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022</title><link rel=manifest href=/nicolive-kubernetes-migration-handbook-2022/manifest.json><link rel=icon href=/nicolive-kubernetes-migration-handbook-2022/favicon.png type=image/x-icon><link rel=stylesheet href=/nicolive-kubernetes-migration-handbook-2022/book.min.fcc3ce6727c2b2b91bc9a518374b77e2097222f7fe4dc0016db675da315da284.css integrity="sha256-/MPOZyfCsrkbyaUYN0t34glyIvf+TcABbbZ12jFdooQ=" crossorigin=anonymous><script defer src=/nicolive-kubernetes-migration-handbook-2022/flexsearch.min.js></script>
+<script defer src=/nicolive-kubernetes-migration-handbook-2022/en.search.min.316dfec6e198e1d4e40887d7250e8b92d7bde449cce89841b69417adbdc06208.js integrity="sha256-MW3+xuGY4dTkCIfXJQ6Lkte95EnM6JhBtpQXrb3AYgg=" crossorigin=anonymous></script>
+<script defer src=/nicolive-kubernetes-migration-handbook-2022/sw.min.dd2d6bf3c93d9223651db8ea5867f95fed658724b711f7b9e9e1d8aa46a84ebd.js integrity="sha256-3S1r88k9kiNlHbjqWGf5X+1lhyS3Efe56eHYqkaoTr0=" crossorigin=anonymous></script></head><body dir=ltr><input type=checkbox class="hidden toggle" id=menu-control>
+<input type=checkbox class="hidden toggle" id=toc-control><main class="container flex"><aside class=book-menu><div class=book-menu-content><nav><h2 class=book-brand><a class="flex align-center" href=/nicolive-kubernetes-migration-handbook-2022/><span>ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022</span></a></h2><div class=book-search><input type=text id=book-search-input placeholder=Search aria-label=Search maxlength=64 data-hotkeys=s/><div class="book-search-spinner hidden"></div><ul id=book-search-results></ul></div><ul><li><span>ネットワーク</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/network/architecture/>移行前・移行中・移行後のネットワーク設計</a></li></ul></li><li><span>Manifest管理</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/manifest-management/>KubernetesのManifest管理</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/kubernetes-manifest-written-by-typescript/>TypeScriptでKubernetesのmanifestを記述する</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/kubernetes-manifest-generator-architecture/>TypeScriptでManifestを生成するGeneratorのアーキテクチャ</a></li></ul></li><li><span>Continuous Delivery</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/argo-cd/>Argo CDの利用</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/argo-rollouts/>Argo Rolloutsの利用</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/slack-bot/>Slack Botによる自動化</a></li></ul></li><li><span>Service Mesh (Istio)</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/istio/>BFFとIstio</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/access-log/ class=active>アクセスログ</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/traffic-management/>Istio Ingress Gatewayの設定</a></li></ul></li><li><span>Rate Limit</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/global-ratelimit/>Global RateLimit</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/local-ratelimit/>Local RateLimit</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/ratelimit-is-unless/>RateLimitで負荷の上昇を防げないパターン</a></li></ul></li><li><span>スケーリング</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/scalability/horizontal-pod-autoscaler/>水平スケール</a></li></ul></li><li><span>負荷</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/load-test/>負荷試験</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/monitoring/>モニタリング</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/load-balancing/>負荷分散</a></li></ul></li><li><span>Docker SwarmからKubernetesへの移行</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/migrate-practice/migrate-docker-swarm-to-kubernetes/>移行の実施</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/migrate-practice/application/>アプリケーションの移行</a></li></ul></li></ul></nav><script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script></div></aside><div class=book-page><header class=book-header><div class="flex align-center justify-between"><label for=menu-control><img src=/nicolive-kubernetes-migration-handbook-2022/svg/menu.svg class=book-icon alt=Menu></label>
+<strong>アクセスログ</strong>
+<label for=toc-control><img src=/nicolive-kubernetes-migration-handbook-2022/svg/toc.svg class=book-icon alt="Table of Contents"></label></div><aside class="hidden clearfix"><nav id=TableOfContents><ul><li><a href=#ingress-gatewayとアクセスログ周りのアーキテクチャ>Ingress Gatewayとアクセスログ周りのアーキテクチャ</a><ul><li><a href=#アクセスログの出力にnginxを利用している理由>アクセスログの出力にnginxを利用している理由</a></li><li><a href=#fluent-bitで収集してfluentdに渡している理由>fluent-bitで収集してfluentdに渡している理由</a></li><li><a href=#nginxからfluent-bitにunix-socket経由でログを送信している理由>nginxからfluent-bitにUnix Socket経由でログを送信している理由</a></li></ul></li><li><a href=#具体的な設定>具体的な設定</a><ul><li><a href=#nginxの出力先の設定>nginxの出力先の設定</a></li><li><a href=#fluent-bit>fluent-bit</a></li><li><a href=#istiooperator>IstioOperator</a></li></ul></li><li><a href=#これから>これから</a></li></ul></nav></aside></header><article class=markdown><h1 id=アクセスログ>アクセスログ
+<a class=anchor href=#%e3%82%a2%e3%82%af%e3%82%bb%e3%82%b9%e3%83%ad%e3%82%b0>#</a></h1><p>Webフロントエンドが管理するサーバーにおける最重要なシステムの一つは<strong>アクセスログ</strong>です。
+不正アクセスなどのセキュリティ的な側面や、会社の収益のツリー構造に関わる部分など多くの重要な情報をここから得られます。
+ゆえにこの部分のシステムは信頼度が最も高い方法で実現する必要があります。</p><p>したがって移行前のアーキテクチャをなるべく踏襲しつつ、Ingress Gatewayに近いところに配置する必要がありました。
+また、ログは既存のfluentdの収集と連携する必要がありました。</p><p>最終的に本番で稼働しているアーキテクチャは次のようになります。</p><h2 id=ingress-gatewayとアクセスログ周りのアーキテクチャ>Ingress Gatewayとアクセスログ周りのアーキテクチャ
+<a class=anchor href=#ingress-gateway%e3%81%a8%e3%82%a2%e3%82%af%e3%82%bb%e3%82%b9%e3%83%ad%e3%82%b0%e5%91%a8%e3%82%8a%e3%81%ae%e3%82%a2%e3%83%bc%e3%82%ad%e3%83%86%e3%82%af%e3%83%81%e3%83%a3>#</a></h2><p><img src=../gateway-access-log.svg alt=アクセスログの収集アーキテクチャ></p><p>戦略としてはIngress Gatewayの前段にnginxを配置し、クラスター外からのアクセスを最初にnginxが受けるようにしました。nginxから出力されるアクセスログは<code>syslog</code>でUnix Socketを経由してfluent-bitに転送しています。
+fluent-bitはsyslogをINPUTとして既存のfluentdと結合するために出力先のディレクトリとログの書き出しをコントロールしています。</p><p>このアーキテクチャに至った経緯を紹介します。</p><h3 id=アクセスログの出力にnginxを利用している理由>アクセスログの出力にnginxを利用している理由
+<a class=anchor href=#%e3%82%a2%e3%82%af%e3%82%bb%e3%82%b9%e3%83%ad%e3%82%b0%e3%81%ae%e5%87%ba%e5%8a%9b%e3%81%abnginx%e3%82%92%e5%88%a9%e7%94%a8%e3%81%97%e3%81%a6%e3%81%84%e3%82%8b%e7%90%86%e7%94%b1>#</a></h3><p>今回は移行が伴っているため、なるべく低コストで移行を安全に実施したい狙いがありました。
+もともとnginxからログを出力していることもあり、その実績からそのまま流用する形を取りました。</p><p>また、envoyによるアクセスログの出力も考慮に入れましたが、Cookieなどに含まれる情報を出力するためにluaを書く必要があったり、そのパース用にスクリプト自体が保守するのが大変であるため断念しました。</p><h3 id=fluent-bitで収集してfluentdに渡している理由>fluent-bitで収集してfluentdに渡している理由
+<a class=anchor href=#fluent-bit%e3%81%a7%e5%8f%8e%e9%9b%86%e3%81%97%e3%81%a6fluentd%e3%81%ab%e6%b8%a1%e3%81%97%e3%81%a6%e3%81%84%e3%82%8b%e7%90%86%e7%94%b1>#</a></h3><p>fluentdは移行前からあるログ収集の手段です。
+fluent-bitはfluentdのC言語実装で、fluent-bitも出力先をfluentdと同じ場所に向けることは可能です。
+しかしながらこれも移行をスムーズに進めるために既存のfluentdの設定を頑張ってfluent-bitに移すことはしませんでした。</p><h3 id=nginxからfluent-bitにunix-socket経由でログを送信している理由>nginxからfluent-bitにUnix Socket経由でログを送信している理由
+<a class=anchor href=#nginx%e3%81%8b%e3%82%89fluent-bit%e3%81%abunix-socket%e7%b5%8c%e7%94%b1%e3%81%a7%e3%83%ad%e3%82%b0%e3%82%92%e9%80%81%e4%bf%a1%e3%81%97%e3%81%a6%e3%81%84%e3%82%8b%e7%90%86%e7%94%b1>#</a></h3><p>最初、fluent-bitをDaemonSetとして配置してIngress Gateway用のNodeに配置するようにしていました。
+nginxのログを<code>stdout</code>で出力し、<code>/var/log/containers/[containerId].log</code>に出力されるnginxのログをfluent-bitのtail INPUTを利用して収集していました。</p><p>しかしながら、高rps環境下でtailを利用するとfluent-bitのtailが突然止まる不具合に遭遇しました。
+これはissueに起票されていますが、活発でないとしてBotによって2022/04/09クローズされました。</p><ul><li><a href=https://github.com/fluent/fluent-bit/issues/3947>https://github.com/fluent/fluent-bit/issues/3947</a></li></ul><p>挙動を見ているとどうやら<code>/var/log/containers</code>に出力されるログファイルのシンボリックリンク先である、
+<code>/var/log/pods/[pod-id]/0.log</code>が<code>.gz</code>ファイルにアーカイブされるときにファイルディスクリプタあたりが変更されそこでうまくfluent-bitが処理で基底なさそうだということがなんとなくわかっています。
+とはいえこれを修正するためにfluent-bitにPull Requestを送って、リリースされるまでの間ログが収集できないとなると移行スケジュールに問題が発生するため別の方法を考えました。</p><p>幸い、AWSのfluent-bitのトラブルシューティングがあったのでここを参考にしました。</p><ul><li><a href=https://github.com/aws/aws-for-fluent-bit/blob/mainline/troubleshooting/debugging.md>https://github.com/aws/aws-for-fluent-bit/blob/mainline/troubleshooting/debugging.md</a></li></ul><p><a href=https://github.com/aws/aws-for-fluent-bit/blob/mainline/troubleshooting/debugging.md#scaling>Scaling</a>の章に高スループットでfluent-bitを運用するための方法が紹介されており、そこに「DaemonSetモデルからSidecarモデルへ」と「ログファイルのTailからLog Streamingモデルへ」の変更が有効であることが記述されていました。</p><p>すぐにこれを採用し、最初に紹介したアーキテクチャへと変貌を遂げました</p><h2 id=具体的な設定>具体的な設定
+<a class=anchor href=#%e5%85%b7%e4%bd%93%e7%9a%84%e3%81%aa%e8%a8%ad%e5%ae%9a>#</a></h2><p>これら理由を踏まえた上で設定は次のようになります。</p><h3 id=nginxの出力先の設定>nginxの出力先の設定
+<a class=anchor href=#nginx%e3%81%ae%e5%87%ba%e5%8a%9b%e5%85%88%e3%81%ae%e8%a8%ad%e5%ae%9a>#</a></h3><p>ログは取り扱いしやすいように一度JSONで出力しています。
+syslogは<code>/tmp/sidecar-nginx/sys-log.sock</code>に対して出力しています。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-nginx.conf data-lang=nginx.conf><span style=display:flex><span><span style=color:#66d9ef>log_format</span> <span style=color:#e6db74>json_access_format</span> <span style=color:#e6db74>escape=json</span> <span style=color:#e6db74>&#39;</span>{ <span style=color:#f92672>中略</span> <span style=color:#960050;background-color:#1e0010>}</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span><span style=color:#e6db74>server</span> {
+</span></span><span style=display:flex><span>  <span style=color:#f92672>access_log</span> <span style=color:#e6db74>syslog:server=unix:/tmp/sidecar-nginx/sys-log.sock</span> <span style=color:#e6db74>json_access_format</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h3 id=fluent-bit>fluent-bit
+<a class=anchor href=#fluent-bit>#</a></h3><p><code>INPUT</code>は<code>/tmp/sidecar-nginx/sys-log.sock</code>からnginxのログをJSON形式で読み込み、
+syslog → JSON → 日付抽出 → タグの書き換え(出力先の調整)<code>FILTER</code>を通った後、
+ファイルに書き出しています。</p><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span></span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">32
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">33
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">34
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">35
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">36
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">37
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">38
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">39
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">40
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">41
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">42
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">43
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">44
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">45
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">46
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">47
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">48
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">49
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">50
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">51
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">52
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">53
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">54
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">55
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">56
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">57
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">58
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">59
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">60
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">61
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#66d9ef>[SERVICE]</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Flush               1</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Grace               120</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Daemon              off</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Parsers_File        parsers.conf</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>HTTP_Server         On</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>HTTP_Listen         0.0.0.0</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>HTTP_PORT           2020</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Log_Level           info</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[INPUT]</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Name                syslog</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Tag                 kube.*</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Path                /tmp/sidecar-nginx/sys-log.sock</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>    <span style=color:#a6e22e>Parser              syslog-rfc3164-local</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Mode                unix_udp</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[FILTER]</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Name                parser </span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Match               kube.*</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Key_Name            message</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Preserve_Key        true</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Reserve_Data        true</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Parser              json</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[FILTER]</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Name                lua</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Match               kube.*</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>script              create-log-file-path.lua</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>call                create_log_file_path</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[FILTER]</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Name                rewrite_tag</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Match               kube.*</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Rule                vhost ^(.*)$ /log/output/path/$log_file_path true</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[PARSER]</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Name                nginx_access_log</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Format              regex</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Regex               ^(?&lt;container_log_time&gt;[^ ]+) (?&lt;stream&gt;stdout|stderr) (?&lt;logtag&gt;[^ ]*) (?&lt;message&gt;.*)$</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Time_Key            time</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Time_Format         %Y-%m-%dT%H:%M:%S%z</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Time_Keep           On</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[PARSER]</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Name                syslog-rfc3164-local</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Format              regex</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Regex               ^&lt;(?&lt;pri&gt;[0-9]+)&gt;(?&lt;time&gt;[^ ]* {1,2}[^ ]* [^ ]*) (?&lt;ident&gt;[a-zA-Z0-9_/.-]*)(?:[(?&lt;pid&gt;[0-9]+)])?(?:[^:]*:)? *(?&lt;message&gt;.*)$</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Time_Key            time</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Time_Format         %b %d %H:%M:%S</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Time_Keep           On</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[PARSER]</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Name               json</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Format             json</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[OUTPUT]</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Name               file</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Match              *</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Format             template</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>Template           method:{method}	uri:{uri} 中略</span>
+</span></span></code></pre></td></tr></table></div></div><p>日付順で出力するために、以下のlua scriptを利用してTagを書き換えています。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-lua data-lang=lua><span style=display:flex><span><span style=color:#75715e>-- create-log-file-path.lua</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>function</span> <span style=color:#a6e22e>create_log_file_path</span>(tag, timestamp, record)
+</span></span><span style=display:flex><span>  new_record <span style=color:#f92672>=</span> record
+</span></span><span style=display:flex><span>  new_record[<span style=color:#e6db74>&#34;log_file_path&#34;</span>] <span style=color:#f92672>=</span> os.date(<span style=color:#e6db74>&#34;%Y-%m%d&#34;</span>,timestamp)<span style=color:#f92672>..</span><span style=color:#e6db74>&#34;/istio-ingressgateway-access.log&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>1</span>, timestamp, new_record
+</span></span><span style=display:flex><span><span style=color:#66d9ef>end</span>
+</span></span></code></pre></div><h3 id=istiooperator>IstioOperator
+<a class=anchor href=#istiooperator>#</a></h3><p>KubernetesのManifestファイルは次のようになります</p><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">  1
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">  2
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">  3
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">  4
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">  5
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">  6
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">  7
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">  8
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">  9
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 10
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 11
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 12
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 13
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 14
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 15
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 16
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 17
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 18
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 19
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 20
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 21
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 22
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 23
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 24
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 25
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 26
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 27
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 28
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 29
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 30
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 31
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 32
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 33
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 34
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 35
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 36
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 37
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 38
+</span></span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 39
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 40
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 41
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 42
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 43
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 44
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 45
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 46
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 47
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 48
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 49
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 50
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 51
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 52
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 53
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 54
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 55
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 56
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 57
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 58
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 59
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 60
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 61
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 62
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 63
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 64
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 65
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 66
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 67
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 68
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 69
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 70
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 71
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 72
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 73
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 74
+</span></span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 75
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 76
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 77
+</span></span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 78
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 79
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 80
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 81
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 82
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 83
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 84
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 85
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 86
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 87
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 88
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 89
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 90
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 91
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 92
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 93
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 94
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 95
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 96
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 97
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 98
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 99
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">100
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">101
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">102
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">103
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">104
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">105
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">106
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">107
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">108
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">109
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">110
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">111
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">112
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">113
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">114
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">115
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">116
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">117
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>install.istio.io/v1alpha1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>IstioOperator</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>istio-my-ingressgateway</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>profile</span>: <span style=color:#ae81ff>empty</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>components</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ingressGateways</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>istio-my-ingressgateway</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>k8s</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>overlays</span>:
+</span></span><span style=display:flex><span>            - <span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>apps/v1</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Deployment</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>name</span>: <span style=color:#ae81ff>istio-my-ingressgateway</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>patches</span>:
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>spec.template.spec.containers[1]</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>value</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>sidecar-nginx</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>env</span>:
+</span></span><span style=display:flex><span>                      - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>TZ</span>
+</span></span><span style=display:flex><span>                        <span style=color:#f92672>value</span>: <span style=color:#ae81ff>Asia/Tokyo</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>image</span>: <span style=color:#75715e># nginx</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>securityContext</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>privileged</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>runAsUser</span>: <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>runAsGroup</span>: <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>runAsNonRoot</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>volumeMounts</span>:
+</span></span><span style=display:flex><span>                      - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>cache-volume</span>
+</span></span><span style=display:flex><span>                        <span style=color:#f92672>mountPath</span>: <span style=color:#ae81ff>/var/cache/nginx</span>
+</span></span><span style=display:flex><span>                      - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>pid-volume</span>
+</span></span><span style=display:flex><span>                        <span style=color:#f92672>mountPath</span>: <span style=color:#ae81ff>/var/run</span>
+</span></span><span style=display:flex><span>                      - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>ingressgateway-sidecar-nginx-conf</span>
+</span></span><span style=display:flex><span>                        <span style=color:#f92672>mountPath</span>: <span style=color:#ae81ff>/etc/nginx</span>
+</span></span><span style=display:flex><span>                        <span style=color:#f92672>readOnly</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>                      - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>nginx-unix-socket</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>                        <span style=color:#f92672>mountPath</span>: <span style=color:#ae81ff>/tmp/sidecar-nginx</span> <span style=color:#75715e># nginxのsyslog出力場所</span>
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>spec.template.spec.containers[2]</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>value</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>sidecar-fluent-bit</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>fluent/fluent-bit:1.8.13</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>imagePullPolicy</span>: <span style=color:#ae81ff>Always</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>                      - <span style=color:#f92672>containerPort</span>: <span style=color:#ae81ff>2020</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>securityContext</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>privileged</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>runAsUser</span>: <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>runAsGroup</span>: <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>runAsNonRoot</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>readinessProbe</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>httpGet</span>:
+</span></span><span style=display:flex><span>                        <span style=color:#f92672>path</span>: <span style=color:#ae81ff>/api/v1/metrics/prometheus</span>
+</span></span><span style=display:flex><span>                        <span style=color:#f92672>port</span>: <span style=color:#ae81ff>2020</span>
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>failureThreshold</span>: <span style=color:#ae81ff>3</span>
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>timeoutSeconds</span>: <span style=color:#ae81ff>3</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>livenessProbe</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>httpGet</span>:
+</span></span><span style=display:flex><span>                        <span style=color:#f92672>path</span>: <span style=color:#ae81ff>/</span>
+</span></span><span style=display:flex><span>                        <span style=color:#f92672>port</span>: <span style=color:#ae81ff>2020</span>
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>failureThreshold</span>: <span style=color:#ae81ff>3</span>
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>timeoutSeconds</span>: <span style=color:#ae81ff>3</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>resources</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>requests</span>:
+</span></span><span style=display:flex><span>                        <span style=color:#f92672>cpu</span>: <span style=color:#ae81ff>150m</span>
+</span></span><span style=display:flex><span>                        <span style=color:#f92672>memory</span>: <span style=color:#ae81ff>128Mi</span>
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>limits</span>:
+</span></span><span style=display:flex><span>                        <span style=color:#f92672>cpu</span>: <span style=color:#ae81ff>150m</span>
+</span></span><span style=display:flex><span>                        <span style=color:#f92672>memory</span>: <span style=color:#ae81ff>128Mi</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>volumeMounts</span>:
+</span></span><span style=display:flex><span>                      - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>sidecar-fluent-bit</span>
+</span></span><span style=display:flex><span>                        <span style=color:#f92672>mountPath</span>: <span style=color:#ae81ff>/fluent-bit/etc</span>
+</span></span><span style=display:flex><span>                      - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>log-output-volume</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>                        <span style=color:#f92672>mountPath</span>: <span style=color:#ae81ff>/log/output/path</span> <span style=color:#75715e># fluent-bitのログの出力場所</span>
+</span></span><span style=display:flex><span>                      - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>nginx-unix-socket</span>
+</span></span><span style=display:flex><span>                        <span style=color:#75715e># fluent-bitがfluent-bitのUNIX Socketを読み込む場所</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>                        <span style=color:#f92672>mountPath</span>: <span style=color:#ae81ff>/tmp/sidecar-nginx</span>
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>spec.template.spec.volumes[8]</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>value</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>ingressgateway-sidecar-nginx-conf</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>configMap</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>name</span>: <span style=color:#ae81ff>ingressgateway-sidecar-nginx-conf</span>
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>items</span>:
+</span></span><span style=display:flex><span>                        - <span style=color:#f92672>key</span>: <span style=color:#ae81ff>nginx.conf</span>
+</span></span><span style=display:flex><span>                          <span style=color:#f92672>path</span>: <span style=color:#ae81ff>nginx.conf</span>
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>spec.template.spec.volumes[9]</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>value</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>sidecar-nginx-error-page</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>configMap</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>name</span>: <span style=color:#ae81ff>sidecar-nginx-error-page</span>
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>spec.template.spec.volumes[10]</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>value</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>cache-volume</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>emptyDir</span>: {}
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>spec.template.spec.volumes[11]</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>value</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>pid-volume</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>emptyDir</span>: {}
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>spec.template.spec.volumes[12]</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>value</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>varlog</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>hostPath</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>path</span>: <span style=color:#ae81ff>/var/log</span>
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>spec.template.spec.volumes[13]</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>value</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>sidecar-fluent-bit</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>configMap</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>name</span>: <span style=color:#ae81ff>sidecar-fluent-bit</span>
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>spec.template.spec.volumes[14]</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>value</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>log-output-volume</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>hostPath</span>:
+</span></span><span style=display:flex><span>                      <span style=color:#f92672>path</span>:  <span style=color:#ae81ff>/log/output/path</span>
+</span></span><span style=display:flex><span>                - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>spec.template.spec.volumes[15]</span>
+</span></span><span style=display:flex><span>                  <span style=color:#f92672>value</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>nginx-unix-socket</span>
+</span></span><span style=display:flex><span>                    <span style=color:#f92672>emptyDir</span>: {}
+</span></span></code></pre></td></tr></table></div></div><p><code>/tmp/sidecar-nginx</code>に対してUnix Socket用のEmpty Directoryを作成し、Pod内でシェアすることでPodとして見たときにポータビリティが確保できます。</p><p>IstioOperatorで新しくContainerやVolumeを追加する場合は現状 <code>k8s.overlays</code> で頑張って追加するしかありませんが、
+<a href=/docs/03/kubernetes-manifest-written-by-typescript/>ManifestをTypeScriptで管理</a>しているため、管理が難しいなどの問題は発生しませんでした。</p><p>ただしバージョンアップに伴ってIstioOperatorが作成するIngressGatewayのDeploymentを確認する必要があります。
+早々バージョン更新の頻度は高くないので、バージョン更新後の検証と同時にやっても問題ないでしょう。</p><h2 id=これから>これから
+<a class=anchor href=#%e3%81%93%e3%82%8c%e3%81%8b%e3%82%89>#</a></h2><p>ここまでに説明したことを改めて整理すると、移行時に飲み込んだ冗長的な部分を最適化することがまずできます。</p><ol><li>nginxのログ出力をIngress Gatewayのistio-proxyで実施する</li><li>fluentdによるログ転送処理をfluent-bitに移行する</li></ol><p>これらを実施することで<code>IstioOperator</code>のManifestはある程度見やすくなります。</p></article><footer class=book-footer><div class="flex flex-wrap justify-between"></div><script>(function(){function e(n){const e=window.getSelection(),t=document.createRange();t.selectNodeContents(n),e.removeAllRanges(),e.addRange(t)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script></footer><div class=book-comments></div><label for=menu-control class="hidden book-menu-overlay"></label></div><aside class=book-toc><div class=book-toc-content><nav id=TableOfContents><ul><li><a href=#ingress-gatewayとアクセスログ周りのアーキテクチャ>Ingress Gatewayとアクセスログ周りのアーキテクチャ</a><ul><li><a href=#アクセスログの出力にnginxを利用している理由>アクセスログの出力にnginxを利用している理由</a></li><li><a href=#fluent-bitで収集してfluentdに渡している理由>fluent-bitで収集してfluentdに渡している理由</a></li><li><a href=#nginxからfluent-bitにunix-socket経由でログを送信している理由>nginxからfluent-bitにUnix Socket経由でログを送信している理由</a></li></ul></li><li><a href=#具体的な設定>具体的な設定</a><ul><li><a href=#nginxの出力先の設定>nginxの出力先の設定</a></li><li><a href=#fluent-bit>fluent-bit</a></li><li><a href=#istiooperator>IstioOperator</a></li></ul></li><li><a href=#これから>これから</a></li></ul></nav></div></aside></main></body></html>

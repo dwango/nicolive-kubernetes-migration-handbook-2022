@@ -1,0 +1,1 @@
+navigator.serviceWorker&&navigator.serviceWorker.register("/nicolive-kubernetes-migration-handbook-2022/sw.js",{scope:"/nicolive-kubernetes-migration-handbook-2022/"})

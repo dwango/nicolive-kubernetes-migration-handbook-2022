@@ -1,0 +1,247 @@
+<!doctype html><html lang=ja-jp dir=ltr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=description content="Istio Ingress Gatewayの設定 #  Ingress Gatewayクラスター外部に対してクラスター内部のServiceに対するルーティングを公開します(Ingressとは何か)。 IstioもIngress Gatewayを提供しており、L7のルーティング設定を記述することができます。
+Istio Ingress Gatewayの設定を変更するためにはいくつかのComponentを定義する必要があり、代表的なのはドキュメント(Istio / Ingress Gateways)で紹介されているGatewayとVirtualServiceになります。 nginxやApacheのようにconfファイルを起動時に読み込む形式と違い、istioがEnvoyに対してAPI経由で設定変更を動的に変更することになります。 そのため、どのistio-proxy(GatewayもしくはSidecarとして機能しているEnvoy)に対して設定を適用させるか記述する必要があります。
+ここでは、以下の図中のIstio Ingress Gatewayに対して設定を変更します。
+hostsでルーティングを分ける #  例えばPCとスマートフォン(SP)でルーティング先を分けたい場合があります。 これを実現するためにはまずはGatewayを宣言する必要があります。 ここではわかりやすいようにPCのルーティング先をpc.example.com、SPの行き先をsp.example.comとして定義します。
+PC用Gateway
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  apiVersion: networking.istio.io/v1alpha3 kind: Gateway metadata:  name: pc-example-com  namespace: demo spec:  selector:  app.kubernetes.io/name: istio-ingressgateway  app.kubernetes.io/part-of: istio  servers:  - port:  number: 33000  name: http  protocol: HTTP  hosts:  - pc."><meta name=theme-color content="#FFFFFF"><meta name=color-scheme content="light dark"><meta property="og:title" content="Istio Ingress Gatewayの設定"><meta property="og:description" content="Istio Ingress Gatewayの設定 #  Ingress Gatewayクラスター外部に対してクラスター内部のServiceに対するルーティングを公開します(Ingressとは何か)。 IstioもIngress Gatewayを提供しており、L7のルーティング設定を記述することができます。
+Istio Ingress Gatewayの設定を変更するためにはいくつかのComponentを定義する必要があり、代表的なのはドキュメント(Istio / Ingress Gateways)で紹介されているGatewayとVirtualServiceになります。 nginxやApacheのようにconfファイルを起動時に読み込む形式と違い、istioがEnvoyに対してAPI経由で設定変更を動的に変更することになります。 そのため、どのistio-proxy(GatewayもしくはSidecarとして機能しているEnvoy)に対して設定を適用させるか記述する必要があります。
+ここでは、以下の図中のIstio Ingress Gatewayに対して設定を変更します。
+hostsでルーティングを分ける #  例えばPCとスマートフォン(SP)でルーティング先を分けたい場合があります。 これを実現するためにはまずはGatewayを宣言する必要があります。 ここではわかりやすいようにPCのルーティング先をpc.example.com、SPの行き先をsp.example.comとして定義します。
+PC用Gateway
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16  apiVersion: networking.istio.io/v1alpha3 kind: Gateway metadata:  name: pc-example-com  namespace: demo spec:  selector:  app.kubernetes.io/name: istio-ingressgateway  app.kubernetes.io/part-of: istio  servers:  - port:  number: 33000  name: http  protocol: HTTP  hosts:  - pc."><meta property="og:type" content="article"><meta property="og:url" content="https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/traffic-management/"><meta property="article:section" content="docs"><meta property="article:modified_time" content="2022-06-02T17:14:12+09:00"><title>Istio Ingress Gatewayの設定 | ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022</title><link rel=manifest href=/nicolive-kubernetes-migration-handbook-2022/manifest.json><link rel=icon href=/nicolive-kubernetes-migration-handbook-2022/favicon.png type=image/x-icon><link rel=stylesheet href=/nicolive-kubernetes-migration-handbook-2022/book.min.fcc3ce6727c2b2b91bc9a518374b77e2097222f7fe4dc0016db675da315da284.css integrity="sha256-/MPOZyfCsrkbyaUYN0t34glyIvf+TcABbbZ12jFdooQ=" crossorigin=anonymous><script defer src=/nicolive-kubernetes-migration-handbook-2022/flexsearch.min.js></script>
+<script defer src=/nicolive-kubernetes-migration-handbook-2022/en.search.min.316dfec6e198e1d4e40887d7250e8b92d7bde449cce89841b69417adbdc06208.js integrity="sha256-MW3+xuGY4dTkCIfXJQ6Lkte95EnM6JhBtpQXrb3AYgg=" crossorigin=anonymous></script>
+<script defer src=/nicolive-kubernetes-migration-handbook-2022/sw.min.dd2d6bf3c93d9223651db8ea5867f95fed658724b711f7b9e9e1d8aa46a84ebd.js integrity="sha256-3S1r88k9kiNlHbjqWGf5X+1lhyS3Efe56eHYqkaoTr0=" crossorigin=anonymous></script></head><body dir=ltr><input type=checkbox class="hidden toggle" id=menu-control>
+<input type=checkbox class="hidden toggle" id=toc-control><main class="container flex"><aside class=book-menu><div class=book-menu-content><nav><h2 class=book-brand><a class="flex align-center" href=/nicolive-kubernetes-migration-handbook-2022/><span>ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022</span></a></h2><div class=book-search><input type=text id=book-search-input placeholder=Search aria-label=Search maxlength=64 data-hotkeys=s/><div class="book-search-spinner hidden"></div><ul id=book-search-results></ul></div><ul><li><span>ネットワーク</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/network/architecture/>移行前・移行中・移行後のネットワーク設計</a></li></ul></li><li><span>Manifest管理</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/manifest-management/>KubernetesのManifest管理</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/kubernetes-manifest-written-by-typescript/>TypeScriptでKubernetesのmanifestを記述する</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/manifest/kubernetes-manifest-generator-architecture/>TypeScriptでManifestを生成するGeneratorのアーキテクチャ</a></li></ul></li><li><span>Continuous Delivery</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/argo-cd/>Argo CDの利用</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/argo-rollouts/>Argo Rolloutsの利用</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/ci/slack-bot/>Slack Botによる自動化</a></li></ul></li><li><span>Service Mesh (Istio)</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/istio/>BFFとIstio</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/access-log/>アクセスログ</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/service-mesh/traffic-management/ class=active>Istio Ingress Gatewayの設定</a></li></ul></li><li><span>Rate Limit</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/global-ratelimit/>Global RateLimit</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/local-ratelimit/>Local RateLimit</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/rate-limit/ratelimit-is-unless/>RateLimitで負荷の上昇を防げないパターン</a></li></ul></li><li><span>スケーリング</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/scalability/horizontal-pod-autoscaler/>水平スケール</a></li></ul></li><li><span>負荷</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/load-test/>負荷試験</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/monitoring/>モニタリング</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/performance/load-balancing/>負荷分散</a></li></ul></li><li><span>Docker SwarmからKubernetesへの移行</span><ul><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/migrate-practice/migrate-docker-swarm-to-kubernetes/>移行の実施</a></li><li><a href=/nicolive-kubernetes-migration-handbook-2022/docs/migrate-practice/application/>アプリケーションの移行</a></li></ul></li></ul></nav><script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script></div></aside><div class=book-page><header class=book-header><div class="flex align-center justify-between"><label for=menu-control><img src=/nicolive-kubernetes-migration-handbook-2022/svg/menu.svg class=book-icon alt=Menu></label>
+<strong>Istio Ingress Gatewayの設定</strong>
+<label for=toc-control><img src=/nicolive-kubernetes-migration-handbook-2022/svg/toc.svg class=book-icon alt="Table of Contents"></label></div><aside class="hidden clearfix"><nav id=TableOfContents><ul><li><a href=#hostsでルーティングを分ける><code>hosts</code>でルーティングを分ける</a></li><li><a href=#headerやqueryparameterでルーティングする>HeaderやQueryParameterでルーティングする</a></li></ul></nav></aside></header><article class=markdown><h1 id=istio-ingress-gatewayの設定>Istio Ingress Gatewayの設定
+<a class=anchor href=#istio-ingress-gateway%e3%81%ae%e8%a8%ad%e5%ae%9a>#</a></h1><p>Ingress Gatewayクラスター外部に対してクラスター内部のServiceに対するルーティングを公開します(<a href=https://kubernetes.io/ja/docs/concepts/services-networking/ingress/#ingress%e3%81%a8%e3%81%af%e4%bd%95%e3%81%8b>Ingressとは何か</a>)。
+IstioもIngress Gatewayを提供しており、L7のルーティング設定を記述することができます。</p><p>Istio Ingress Gatewayの設定を変更するためにはいくつかのComponentを定義する必要があり、代表的なのはドキュメント(<a href=https://istio.io/latest/docs/tasks/traffic-management/ingress/ingress-control/>Istio / Ingress Gateways</a>)で紹介されている<code>Gateway</code>と<code>VirtualService</code>になります。
+nginxやApacheのようにconfファイルを起動時に読み込む形式と違い、istioがEnvoyに対してAPI経由で設定変更を動的に変更することになります。
+そのため、どのistio-proxy(GatewayもしくはSidecarとして機能しているEnvoy)に対して設定を適用させるか記述する必要があります。</p><p>ここでは、以下の図中のIstio Ingress Gatewayに対して設定を変更します。</p><p><img src=../istio-ingress-gateway.svg alt="istio ingress gatewayの概略図"></p><h2 id=hostsでルーティングを分ける><code>hosts</code>でルーティングを分ける
+<a class=anchor href=#hosts%e3%81%a7%e3%83%ab%e3%83%bc%e3%83%86%e3%82%a3%e3%83%b3%e3%82%b0%e3%82%92%e5%88%86%e3%81%91%e3%82%8b>#</a></h2><p>例えばPCとスマートフォン(SP)でルーティング先を分けたい場合があります。
+これを実現するためにはまずは<a href=https://istio.io/latest/docs/reference/config/networking/gateway/>Gateway</a>を宣言する必要があります。
+ここではわかりやすいようにPCのルーティング先を<code>pc.example.com</code>、SPの行き先を<code>sp.example.com</code>として定義します。</p><p><strong>PC用Gateway</strong></p><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span></span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>networking.istio.io/v1alpha3</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Gateway</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>pc-example-com</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>demo</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>selector</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>app.kubernetes.io/name</span>: <span style=color:#ae81ff>istio-ingressgateway</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>app.kubernetes.io/part-of</span>: <span style=color:#ae81ff>istio</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>servers</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>port</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>number</span>: <span style=color:#ae81ff>33000</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>name</span>: <span style=color:#ae81ff>http</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>protocol</span>: <span style=color:#ae81ff>HTTP</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>hosts</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>        - <span style=color:#ae81ff>pc.example.com</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>SP用Gateway</strong></p><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span></span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>networking.istio.io/v1alpha3</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>Gateway</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>sp-example-com</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>demo</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>selector</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>app.kubernetes.io/name</span>: <span style=color:#ae81ff>istio-ingressgateway</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>app.kubernetes.io/part-of</span>: <span style=color:#ae81ff>istio</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>servers</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>port</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>number</span>: <span style=color:#ae81ff>33000</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>name</span>: <span style=color:#ae81ff>http</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>protocol</span>: <span style=color:#ae81ff>HTTP</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>hosts</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>        - <span style=color:#ae81ff>sp.example.com</span>
+</span></span></code></pre></td></tr></table></div></div><p>このとき、<code>.metadata.namespace</code>と<code>.spec.selector</code>で設定を適用したいIstio IngressGatewayを絞り込みます。
+仮にGatewayを定義しなかった場合、Istio IngressGatewayはリクエストを後方のマイクロサービスに疎通させません。
+次に、このGatewayをVirtualServiceに対してバインドします。</p><p><strong>PC版Virtual Service</strong></p><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span></span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span></span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>networking.istio.io/v1beta1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>VirtualService</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>pc-route</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>demo</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>gateways</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>    - <span style=color:#ae81ff>pc-example-com</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>hosts</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#e6db74>&#34;*&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>http</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>http-route</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>match</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>uri</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>prefix</span>: <span style=color:#ae81ff>/</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>route</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>destination</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>            <span style=color:#f92672>host</span>: <span style=color:#ae81ff>pc.demo.svc.cluster.local</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>port</span>:
+</span></span><span style=display:flex><span>              <span style=color:#f92672>number</span>: <span style=color:#ae81ff>80</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>weight</span>: <span style=color:#ae81ff>100</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>SP版Virtual Service</strong></p><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span></span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span></span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>networking.istio.io/v1beta1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>VirtualService</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>sp-route</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>demo</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>gateways</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>    - <span style=color:#ae81ff>sp-example-com</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>hosts</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#e6db74>&#34;*&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>http</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>http-route</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>match</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>uri</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>prefix</span>: <span style=color:#ae81ff>/</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>route</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>destination</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>            <span style=color:#f92672>host</span>: <span style=color:#ae81ff>sp.demo.svc.cluster.local</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>port</span>:
+</span></span><span style=display:flex><span>              <span style=color:#f92672>number</span>: <span style=color:#ae81ff>80</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>weight</span>: <span style=color:#ae81ff>100</span>
+</span></span></code></pre></td></tr></table></div></div><p>Virtual Serviceは<code>.spec.gateways[]</code>に<code>Gateway</code>の<code>.metadata.name</code>(namespace内でユニーク)を指定することで、
+同一<code>namespace</code>内のGatewayを特定してバインドしています。</p><p>語弊を恐れずにこれらのコンポーネントの流れを書くと次のようになります。</p><pre tabindex=0><code>[host]pc.example.com:33000        # アクセス
+  → [Gateway]pc-example-com       # hostsとPortの宣言
+    → [VirtualService]pc-route    # Gatewayのバインド、PATHに対するServiceへルーティング
+      → [Service]pc.demo.svc.cluster.local # Podに対するルーティング
+</code></pre><p>以上でhostsに対するルーティングを実現することができます。</p><p>また、これらの操作により、同じnamespace内でpcとspで別々のIngress Gatewayに分離したい要求が発生した場合はIngress Gatewayが増えた場合は
+<code>Gateway</code>の<code>.metadata.selector</code>を調整することで対応することができます。</p><h2 id=headerやqueryparameterでルーティングする>HeaderやQueryParameterでルーティングする
+<a class=anchor href=#header%e3%82%84queryparameter%e3%81%a7%e3%83%ab%e3%83%bc%e3%83%86%e3%82%a3%e3%83%b3%e3%82%b0%e3%81%99%e3%82%8b>#</a></h2><p>Virtual Serviceは<code>URI</code>やHeader、Query Parameterなどの情報をもとに、ルーティング先のServiceを変更することができます。
+Argo Rolloutsはこの機能を利用してBlueGreenデプロイや、Canaryデプロイを実現しています。
+デプロイの機能として利用するだけでなく例えば「Preview版の機能を特定のHeader情報を含む場合にのみ公開する」などを実現することが可能です。</p><p>例えば、Headerに<code>version: v2</code>が含まれる場合は、<code>.metadata.name=pc-v2</code>のServiceにルーティングする設定は次のように書くことができます。</p><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span></span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span></span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span></span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">27
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
+</span><span style=background-color:#3c3d38><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
+</span></span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">31
+</span><span style="white-space:pre;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">32
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;display:grid><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>apiVersion</span>: <span style=color:#ae81ff>networking.istio.io/v1beta1</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>kind</span>: <span style=color:#ae81ff>VirtualService</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>metadata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>include-preview-route</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>namespace</span>: <span style=color:#ae81ff>demo</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>spec</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>gateways</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#ae81ff>pc-example-com</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>hosts</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#e6db74>&#34;*&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>http</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>http-preview</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>match</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>uri</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>prefix</span>: <span style=color:#ae81ff>/</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>          <span style=color:#f92672>headers</span>:  <span style=color:#75715e># queryParamsにすると ?preview=v2 でルーティングされる</span>
+</span></span><span style=display:flex;background-color:#3c3d38><span>            <span style=color:#f92672>preview</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>              <span style=color:#f92672>version</span>: <span style=color:#ae81ff>v2</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>route</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>destination</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>            <span style=color:#f92672>host</span>: <span style=color:#ae81ff>pc-v2.demo.svc.cluster.local</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>port</span>:
+</span></span><span style=display:flex><span>              <span style=color:#f92672>number</span>: <span style=color:#ae81ff>80</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#ae81ff>http-common</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>match</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>uri</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>prefix</span>: <span style=color:#ae81ff>/</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>route</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>destination</span>:
+</span></span><span style=display:flex;background-color:#3c3d38><span>            <span style=color:#f92672>host</span>: <span style=color:#ae81ff>pc.demo.svc.cluster.local</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>port</span>:
+</span></span><span style=display:flex><span>              <span style=color:#f92672>number</span>: <span style=color:#ae81ff>80</span>
+</span></span></code></pre></td></tr></table></div></div><p>試験的に実現したい機能などを本番環境に投入したい場合などに役に立つことは間違いないでしょう。</p><p>VirtualServiceを記述する注意点として、<code>.spec.http[]</code>は条件の厳しいものが先にくるように記述する必要があります。
+また、ルーティング先の<code>host</code>となるServiceが存在しない場合はManifestがApplyできないことがあります。</p></article><footer class=book-footer><div class="flex flex-wrap justify-between"></div><script>(function(){function e(n){const e=window.getSelection(),t=document.createRange();t.selectNodeContents(n),e.removeAllRanges(),e.addRange(t)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script></footer><div class=book-comments></div><label for=menu-control class="hidden book-menu-overlay"></label></div><aside class=book-toc><div class=book-toc-content><nav id=TableOfContents><ul><li><a href=#hostsでルーティングを分ける><code>hosts</code>でルーティングを分ける</a></li><li><a href=#headerやqueryparameterでルーティングする>HeaderやQueryParameterでルーティングする</a></li></ul></nav></div></aside></main></body></html>
