@@ -1,6 +1,6 @@
-baseURL = 'http://example.org/'
+baseURL = 'https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022'
 languageCode = 'ja-JP'
-title = 'ニコニコ生放送 WebフロントエンドのKubernetes移行ハンドブック 2022'
+title = 'ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022'
 theme = "hugo-book"
 
 disablePathToLower = true
