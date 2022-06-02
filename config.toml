@@ -1,0 +1,16 @@
+baseURL = 'http://example.org/'
+languageCode = 'ja-JP'
+title = 'ニコニコ生放送 WebフロントエンドのKubernetes移行ハンドブック 2022'
+theme = "hugo-book"
+
+disablePathToLower = true
+enableGitInfo = true
+
+[params]
+  BookTheme = 'auto'
+  BookToC = true
+  BookServiceWorker = true
+
+[markup]
+[markup.goldmark.renderer]
+  unsafe = true

@@ -1,0 +1,12 @@
+---
+table-of-contents: true
+
+from: markdown
+to: latex
+
+# highlight-style: pygments
+
+input-files:
+  - sub/article.md
+
+output-file: sub/article.tex

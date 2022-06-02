@@ -1,0 +1,48 @@
+\documentclass[uplatex,dvipdfmx]{jsarticle}
+\usepackage[top=25truemm,bottom=25truemm,left=25truemm,right=25truemm]{geometry}
+\usepackage{graphicx}
+\usepackage{color}
+\usepackage{listings}
+\usepackage{longtable,booktabs,array}
+\usepackage{booktabs}
+\usepackage[dvipdfmx]{hyperref}
+\usepackage{tabularx} 
+\usepackage{subfig}
+\usepackage{fancyvrb}
+\usepackage{calc}
+\usepackage{pgfpages}
+\usepackage{amsmath,amssymb}
+\usepackage{pdfpages}
+\usepackage{pxjahyper}
+\usepackage{minted}
+
+\usepackage{xcolor}
+\definecolor{LightGray}{gray}{0.97}
+
+\newenvironment{Shaded}{\Huge}{}
+\def\tightlist{\itemsep1pt\parskip0pt\parsep0pt}
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+
+\hypersetup{
+  pdftitle={ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022},
+  pdfauthor={@Himenon}
+}
+
+\title{ニコニコ生放送 Webフロントエンド\\Kubernetes移行ハンドブック 2022}
+\author{@Himenon}
+\date{Last Update \today}
+
+\begin{document}
+
+\maketitle
+
+\clearpage
+
+\tableofcontents
+
+\clearpage
+
+\input{./sub/article-formatted.tex}
+
+\end{document}

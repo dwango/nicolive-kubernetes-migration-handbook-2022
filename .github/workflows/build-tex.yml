@@ -1,0 +1,33 @@
+name: Build PDF
+
+on:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/initialize
+      - uses: pnpm/action-setup@v2.2.0
+        with:
+          version: 7.1.0
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "16.x"
+          cache: "pnpm"
+      - run: pnpm i --frozen-lockfile
+      - name: Build PDF
+        run: |
+          pnpm run build
+      - uses: actions/upload-artifact@v3
+        with:
+          name: article.pdf
+          path: tex-workspace/article.pdf
