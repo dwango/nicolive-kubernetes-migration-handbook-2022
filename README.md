@@ -1,5 +1,7 @@
 # Kubernetes Migrate Book 2022
 
+* [PDF](https://github.com/dwango/nicolive-kubernetes-migration-handbook-2022/raw/main/tex-workspace/article.pdf)
+
 ## Develop
 
 ```bash
