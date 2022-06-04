@@ -1,6 +1,7 @@
 ---
 title: Argo Rolloutsの利用
 weight: 42
+description: ニコニコ生放送におけるArgo Rolloutsの運用事例について紹介します。IstioをIngress Gatewayとした構成でCanary Deployを実現しています。
 ---
 
 # Argo Rolloutsの導入

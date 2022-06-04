@@ -1,9 +1,10 @@
 ---
 title: KubernetesのManifest管理
 weight: 31
+description: BFFにおけるKubernetesのManifest管理について問題の整理と対応の概略について紹介します。
 ---
 
-# Kubernetes の Manifest 管理
+# KubernetesのManifest管理
 
 ここではManifestの管理をどのように実施しているかについて紹介します。
 結果から言えば、Kubernetesで利用するManifestを生成するGeneratorをTypeScriptで構築しました。
@@ -30,7 +31,7 @@ weight: 31
 移行前の段階ですでにファイル数はYAMLで保守するには困難な量が発生することはわかっており、ツールによる補完支援やテスト無しでは必ず破綻することが容易に想定されました。また、これらは最初に定めた2つの目標に反します。
 
 * デプロイが素早く簡単にそして安全に実施できる
-* Webnフロントエンド開発者が更新に必要な最低限の設定の変更を簡単に実施できる
+* Webフロントエンド開発者が更新に必要な最低限の設定の変更を簡単に実施できる
 
 ### TypeScriptでManifestの保守面の問題を解決する
 

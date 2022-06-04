@@ -1,6 +1,7 @@
 ---
 title: TypeScriptでManifestを生成するGeneratorのアーキテクチャ
 weight: 33
+description: KubernetesのManifestをTypeScriptによって生成・管理するための実装アーキテクチャを紹介します。
 ---
 
 # TypeScriptでManifestを生成するGeneratorのアーキテクチャ

@@ -1,12 +1,13 @@
 ---
 title: Argo CDの利用
 weight: 41
+description: ニコニコ生放送におけるArgo CDの運用事例について紹介します。ディレクトリ構成、app of appsの構成について具体的に言及します。
 ---
 
 # Argo CD
 
 ニコニコ生放送のフロントエンドではContinuous Delivery(以降CD)ツールとしてArgo CDとArgo Rolloutsを利用しています。
-ここでの運用とその設計について紹介します。
+ここではその運用と設計について紹介します。
 
 **注意書き**
 

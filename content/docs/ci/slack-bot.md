@@ -1,6 +1,7 @@
 ---
 title: Slack Botによる自動化
 weight: 43
+description: KubernetesのManifestのGitOpsををSlack Botによって効率よく実施する方法を書海します。
 ---
 
 # Slack Botによる自動化
