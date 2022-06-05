@@ -1,7 +1,7 @@
 ---
 title: Argo Rolloutsの利用
 weight: 42
-description: Argo RolloutsとIstioを利用したCanary Deployを構築しました。。
+description: Argo RolloutsとIstioを利用したCanary Deployを構築しました。
 ---
 
 # Argo Rolloutsの導入

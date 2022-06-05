@@ -114,13 +114,6 @@ Reverse Proxyでルーティング先をコントロールする場合でも、R
 Nodejs環境におけるTypeScriptの擬似的な実装は次のようになります。
 
 ```ts
-const process: Process = {
-  env: {
-    RELEASE_ENV: "qa",
-    MICRO_SERVICE_URL: "",
-  }
-}
-
 const urlMap = {
   qa: {
     microServiceUrl: process.env.MICRO_SERVICE_URL || "https://qa.example.com",
