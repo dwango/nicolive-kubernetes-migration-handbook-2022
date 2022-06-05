@@ -1,6 +1,7 @@
 ---
 title: Istio Ingress Gatewayの設定
 weight: 53
+description: Istio IngressGatewayをL7ロードバランサーとして利用する際の主要な設定を紹介します。
 ---
 
 # Istio Ingress Gatewayの設定

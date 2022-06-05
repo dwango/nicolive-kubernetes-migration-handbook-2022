@@ -1,9 +1,10 @@
 ---
-title: 移行の実施
+title: 通信経路の切り替え
 weight: 91
+description: KubernetesにDocker Swarmから通信経路を切り替えるにあたり実施した作業についてPhaseを分けて実施しました。
 ---
 
-# 移行の実施
+# 通信経路の切り替え
 
 移行前の状態（Phase 1）から移行後の状態（Phase 2）までのステップは次のような経路で実施しました。
 
@@ -32,7 +33,7 @@ rps がそこまで高くない BFF はこの手順を繰り返すことで移�
 [アクセスログ](/docs/05/ingress-gateway/)で紹介したようにPodにログ出力のための`nginx`が含まれるため、二重計上されないために`NodePort`を`istio-proxy`に向けたものをミラーリングのためのポートとして提供しています。
 nginxのミラーリングによって高rpsの時間変化がDataDogに蓄積され、そこから[対応表](/docs/07/horizontal-pod-autoscaler/#リソースの値をどうやって決めるか)を用いてリソースの逆算を実施し、移行フェーズへステップを進めることができました。
 
-[![リクエストのミラーリング概略図](../../08/mirroring.svg)](/docs/08/loadtest/#proxyからリクエストをmirroringする)
+[![リクエストのミラーリング概略図](../../performance/mirroring.svg)](/docs/08/loadtest/#proxyからリクエストをmirroringする)
 
 ## ロールバック設計
 

@@ -1,6 +1,7 @@
 ---
 title: アクセスログ
 weight: 52
+description: Istio IngressGatewayのPod内でnginxとfluent-bitアクセスログを収集するアーキテクチャを紹介します。
 ---
 
 # アクセスログ

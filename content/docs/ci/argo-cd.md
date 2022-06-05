@@ -1,7 +1,7 @@
 ---
 title: Argo CDの利用
 weight: 41
-description: ニコニコ生放送におけるArgo CDの運用事例について紹介します。ディレクトリ構成、app of appsの構成について具体的に言及します。
+description: Argo CDを利用することでGitOpsを実現しました。加えて複数のアプリケーションをモノレポで管理する際の利点について言及します。
 ---
 
 # Argo CD

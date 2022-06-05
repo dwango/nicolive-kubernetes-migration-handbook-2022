@@ -1,6 +1,7 @@
 ---
 title: Global RateLimit
 weight: 61
+description: Ingress GatewayレベルのRate Limitを実施することによりUpstream側の負荷を軽減します。
 ---
 
 # Global RateLimit
