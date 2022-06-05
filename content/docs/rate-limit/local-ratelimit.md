@@ -1,6 +1,7 @@
 ---
 title: Local RateLimit
 weight: 62
+description: PodのサイドカーでRate Limitを実施することにより、アプリケーションコンテナに対する負荷の上昇を制限します。またスケールアウトした場合でも同様の効果を得ることができます。
 ---
 
 # Local RateLimit

@@ -1,6 +1,7 @@
 ---
 title: このHandbookについて
 weight: 10
+description: このHandbookに関する情報を記載しています。
 ---
 
 # このHandbookについて

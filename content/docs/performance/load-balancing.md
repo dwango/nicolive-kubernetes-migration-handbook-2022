@@ -1,6 +1,7 @@
 ---
 title: 負荷分散
 weight: 83
+description: KubernetesのNodeや各Podに対してトラフィックが偏らないようになるべく分散される状態を構築します。
 ---
 
 # 負荷対策

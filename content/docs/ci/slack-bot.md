@@ -1,6 +1,7 @@
 ---
 title: Slack Botによる自動化
 weight: 43
+description: Manifestの管理をSlack上での対話的なインターフェースで管理できる状態を構築しました。これにより、アプリケーション開発者がKubernetesを意識せずにスムーズに更新できる状態を実現しています。
 ---
 
 # Slack Botによる自動化

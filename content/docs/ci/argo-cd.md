@@ -1,12 +1,13 @@
 ---
 title: Argo CDの利用
 weight: 41
+description: Argo CDを利用することでGitOpsを実現しました。加えて複数のアプリケーションをモノレポで管理する際の利点について言及します。
 ---
 
 # Argo CD
 
 ニコニコ生放送のフロントエンドではContinuous Delivery(以降CD)ツールとしてArgo CDとArgo Rolloutsを利用しています。
-ここでの運用とその設計について紹介します。
+ここではその運用と設計について紹介します。
 
 **注意書き**
 

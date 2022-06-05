@@ -1,6 +1,7 @@
 ---
 title: モニタリング
 weight: 82
+description: Kubernetesで稼働するアプリケーションやシステム全体をDataDogでモニタリングします。Service Meshと組み合わせてBFFアプリケーションのメトリクスを可視化します。
 ---
 
 # モニタリング

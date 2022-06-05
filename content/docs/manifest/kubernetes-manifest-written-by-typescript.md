@@ -1,6 +1,7 @@
 ---
 title: TypeScriptでKubernetesのmanifestを記述する
 weight: 32
+description: KubernetesのManifestをTypeScriptによって記述する方法について言及します。OpenAPI Schemaから自動生成された型定義を用いることで、TypeScriptやnpmライブラリのエコシステムによるサポートを活用します。
 ---
 
 # TypeScriptでKubernetesのmanifestを記述する

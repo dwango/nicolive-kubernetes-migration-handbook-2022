@@ -14,6 +14,7 @@ enableGitInfo = true
   BookServiceWorker = true
   BookRepo = "https://github.com/dwango/nicolive-kubernetes-migration-handbook-2022"
   BookEditPath = "edit/main"
+  BookSearch = false
 
 [markup]
 [markup.goldmark.renderer]

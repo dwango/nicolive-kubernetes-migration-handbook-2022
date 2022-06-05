@@ -1,6 +1,7 @@
 ---
 title: BFFとIstio
 weight: 51
+description: BFF構成のマイクロサービスとIstioを組み合わせ、どのようなService Meshがあるか紹介します。
 ---
 
 # BFFとIstio
@@ -8,10 +9,10 @@ weight: 51
 ## Istio の利用
 
 Istio は既存のマイクロサービスに対して後付で導入することができ、
-通信を可観測にしたり、負荷分散を実施したり、Proxy としての機能を持っています。
+通信を可観測にしたり、負荷分散を実施したり、Proxyとしての機能を持っています。
 Kubernetes 上で稼働するマイクロサービスの通信をよりプログラマブルに扱える機能を提供しています。
 
-実際に触ってみると istioが謳っているこれらの機能は有用で、サービスメッシュはKubernetesを運用する上で必要不可欠であることを実感させられます。
+実際に触ってみるとistioが謳っているこれらの機能は有用で、サービスメッシュはKubernetesを運用する上で必要不可欠であることを実感させられます。
 
 さて、詳細な部分はドキュメントを読むのが望ましいですが、とっつきにくい部分もあるのでフロントエンドのエンジニアが使うと便利な機能を紹介しつつ
 Istio のコンポーネント紹介します。
@@ -27,7 +28,7 @@ Envoyはそれ自体がProxyであり、nginxやApacheなどのL7 LBと似たよ
 IstioはこのEnvoyを利用して、Kubernetes上で稼働するマイクロサービス間の通信を観測するために Control Plane から各 Pod に Sidecar として注入します。
 Istioから提供されているEnvoyのDocker Imageは`istio-proxy`という名前で提供されており、`kubectl get pod [podname]`などで構成を確認すると`istio-proxy`という名前を確認することができます。
 
-Envoy 単体では通常以下のような YAML を記述して起動時に読み込ませることで Envoy の設定変更を実施します。
+Envoy単体では通常以下のようなYAMLを記述して起動時に読み込ませることでEnvoyの設定変更を実施します。
 
 - https://www.envoyproxy.io/docs/envoy/latest/configuration/overview/examples
 
