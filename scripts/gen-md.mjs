@@ -52,6 +52,7 @@ const replaceCodeBlock = (doc) => {
 };
 
 const main = () => {
+  fs.mkdirSync("tex-workspace/sub", { recursive: true });
   const writeStream = fs.createWriteStream("tex-workspace/sub/article.md", "utf-8");
   toc.map((item) => {
     const doc = fs.readFileSync(item, "utf-8");
