@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "run-s clean gen:md gen:tex replace:tex copy:png copy:pdf gen:dvi gen:dvi gen:pdf",
-    "clean": "del-cli tex-workspace/article.* !tex-workspace/article.tex tex-workspace/sub/* !tex-workspace/sub/.gitkeep",
+    "clean": "del-cli tex-workspace/article.* !tex-workspace/article.tex tex-workspace/sub !tex-workspace/sub/.gitkeep",
     "replace:tex": "node ./scripts/tex-replace.mjs",
     "gen:md": "node ./scripts/gen-md.mjs",
     "gen:tex": "docker run --rm --volume $(pwd)/tex-workspace:/data pandoc/latex -d pandoc.yaml -r markdown-auto_identifiers --no-highlight",
