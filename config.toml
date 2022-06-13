@@ -16,7 +16,7 @@ BookServiceWorker = true
 BookTheme = 'auto'
 BookToC = true
 description = 'ニコニコ生放送 on Kubernetes'
-images = ['ogp.png']
+images = ['site-feature-image.png']
 
 [markup]
 [markup.goldmark.renderer]
