@@ -1,7 +1,7 @@
 baseURL = 'https://dwango.github.io/nicolive-kubernetes-migration-handbook-2022'
 languageCode = 'ja-JP'
-title = 'ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022'
 theme = "hugo-book"
+title = 'ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022'
 
 googleAnalytics = "G-2W6W35K13D"
 
@@ -9,13 +9,13 @@ disablePathToLower = true
 enableGitInfo = true
 
 [params]
-  BookTheme = 'auto'
-  BookToC = true
-  BookServiceWorker = true
-  BookRepo = "https://github.com/dwango/nicolive-kubernetes-migration-handbook-2022"
-  BookEditPath = "edit/main"
-  BookSearch = false
+BookEditPath = "edit/main"
+BookRepo = "https://github.com/dwango/nicolive-kubernetes-migration-handbook-2022"
+BookSearch = false
+BookServiceWorker = true
+BookTheme = 'auto'
+BookToC = true
 
 [markup]
 [markup.goldmark.renderer]
-  unsafe = true
+unsafe = true
