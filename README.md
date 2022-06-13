@@ -1,4 +1,4 @@
-# Kubernetes Migrate Book 2022
+# ニコニコ生放送 Webフロントエンド Kubernetes移行ハンドブック 2022
 
 * [PDF](https://github.com/dwango/nicolive-kubernetes-migration-handbook-2022/raw/main/tex-workspace/article.pdf)
 
