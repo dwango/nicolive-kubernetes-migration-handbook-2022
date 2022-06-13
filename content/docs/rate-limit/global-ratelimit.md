@@ -14,8 +14,8 @@ Trafficがingress gatewayに到達した後の大雑把な流れは次のとお�
 
 1. `rate_limit_service`で指定されたマイクロサービスにたいしてgrpcで問い合わせをします。
 2. `envoyratelimit`は`redis`（`memcache`も利用可）に格納したDescriptorに対するリクエスト数の計算を実施します。
-   * [ratelimit.go#L164](https://github.com/envoyproxy/ratelimit/blob/main/src/service/ratelimit.go#L164)
-   * [fixed_cache_impl.go#L39-L128](https://github.com/envoyproxy/ratelimit/blob/main/src/redis/fixed_cache_impl.go#L39-L128)
+   * [ratelimit.go#L164](https://github.com/envoyproxy/ratelimit/blob/548acf0f0014abc526c28a7e45ea595c0f8e8d89/src/service/ratelimit.go#L164)
+   * [fixed_cache_impl.go#L39-L128](https://github.com/envoyproxy/ratelimit/blob/548acf0f0014abc526c28a7e45ea595c0f8e8d89/src/redis/fixed_cache_impl.go#L39-L128)
 3. 結果をingress gatewayに対して[RateLimitResponse](https://pkg.go.dev/github.com/envoyproxy/go-control-plane@v0.10.1/envoy/service/ratelimit/v3?utm_source=gopls#RateLimitResponse)に乗せて返却
 4. ingress gatewayはレスポンスを受けて429を返すかどうか決定する。
 
