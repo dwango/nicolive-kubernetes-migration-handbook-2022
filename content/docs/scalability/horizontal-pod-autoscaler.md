@@ -72,10 +72,10 @@ BFFを含むPodの大きな特徴として、
 途中で比例グラフが破綻するか、正常レスポンスを返せなくなるところがあります。
 図中の`Pod Performance Limit`はこれを示しています。
 
-また、([Global](/docs/06/global-ratelimit/) / [Local](/docs/06/local-ratelimit/)) Rate Limitで流量制御はPodが`Pod Performance Limit`のrpsよりも低く、
+また、([Global](../../rate-limit/global-ratelimit) / [Local](../../rate-limit/local-ratelimit)) Rate Limitで流量制御はPodが`Pod Performance Limit`のrpsよりも低く、
 HPAが発動するRPSよりも大きく指定する必要があります。
 
-これらの値を決定するためには[負荷試験](/docs/08/loadtest/)を実施することで値を予測することが可能になります。
+これらの値を決定するためには[負荷試験](../../performance/load-test)を実施することで値を予測することが可能になります。
 
 ## バースト性のあるリクエストをどうやって耐えるか
 

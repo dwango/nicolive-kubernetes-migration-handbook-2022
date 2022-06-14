@@ -28,7 +28,7 @@ Docker SwarmからKubernetesに移行するにあたり、移行前のスペッ�
 これらの情報を元に、常設のreplicasの見積りや、Horizontal Pod AutoscalerのためのCPUのlimit設定、
 共倒れを防ぐためのRate Limit設定を割り出していきます。
 
-合わせて[リソースの値をどうやって決めるか](/docs/07/horizontal-pod-autoscaler/#リソースの値をどうやって決めるか)を確認してみてください。
+合わせて[リソースの値をどうやって決めるか](../../scalability/horizontal-pod-autoscaler/#リソースの値をどうやって決めるか)を確認してみてください。
 
 ## 試験方法
 

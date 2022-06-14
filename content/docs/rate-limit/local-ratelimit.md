@@ -8,7 +8,7 @@ description: PodのサイドカーでRate Limitを実施することにより、
 
 **Global RateLimitとの違い**
 
-Local RateLimitと[Global RateLimit](/docs/06/global-ratelimit/)の違いは守るスコープの違いにあります。
+Local RateLimitと[Global RateLimit](../../rate-limit/global-ratelimit)の違いは守るスコープの違いにあります。
 Global RateLimitはUpstream側のシステムを守るため、RateLimitのマイクロサービス間でリクエスト数を共有するためのストア(redisなど)を外側に持っています。
 それに対し、Local RateLimitはRateLimitを提供するProxyだけがリクエスト数を保持でいればよいためインメモリーで実装することができます。
 
@@ -108,5 +108,5 @@ http {
 ## 今後どうするか
 
 Podを構成する要素としてProxyが2段構えになっているのは多少格好は悪いですが、うまく機能しています。
-ただし、後述しますが、envoyやnginxのRateLimitでは[負荷の上昇を防げないパターン問題点](/docs/06/ratelimit-is-unless/)もあります。
+ただし、後述しますが、envoyやnginxのRateLimitでは[負荷の上昇を防げないパターン問題点](../../rate-limit/ratelimit-is-unless)もあります。
 アクセス傾向やPodのMetricsなどを総合的に鑑みてRate Limitの構成と設定値を決めていく必要があります。
