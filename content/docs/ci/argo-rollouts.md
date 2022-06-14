@@ -25,7 +25,7 @@ Istio自体はすでに利用可能な状態にあったため、Traffic Managem
 * [Istio - Traffic Management](https://argoproj.github.io/argo-rollouts/features/traffic-management/istio/)
 
 他と比較はできていませんが、IstioでTraffic Managementをすると、IstioのService Meshの恩恵をそのまま得られることができCanaryデプロイ時にTraffic Weightが変化していることが観測できるようになります。
-なお、[Istio Ingress Gatewayの設定](/docs/05/traffic-management/)でその他の機能についても紹介しています。
+なお、[Istio Ingress Gatewayの設定](../../service-mesh/traffic-management)でその他の機能についても紹介しています。
 
 ## Canary Deployを実施する
 

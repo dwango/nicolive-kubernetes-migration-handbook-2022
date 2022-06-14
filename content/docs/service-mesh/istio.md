@@ -23,7 +23,7 @@ Istio のコンポーネント紹介します。
 
 Envoyはそれ自体がProxyであり、nginxやApacheなどのL7 LBと似たような機能を提供しています。
 大きな違いとして、Envoy はテレメトリが標準で豊富だったり、APIによる構成変更が可能だったりプログラマブルにコントロールできる機能を豊富に持っています。
-すなわち再起動をせずに構成変更が容易であり、[Argo RolloutsのCanary Deploy](/docs/04/argo-rollouts/#canary-deployを実施する)で紹介したように Traffic Weight を柔軟に変更することが可能になります。
+すなわち再起動をせずに構成変更が容易であり、[Argo RolloutsのCanary Deploy](../../ci/argo-rollouts/#canary-deployを実施する)で紹介したように Traffic Weight を柔軟に変更することが可能になります。
 
 IstioはこのEnvoyを利用して、Kubernetes上で稼働するマイクロサービス間の通信を観測するために Control Plane から各 Pod に Sidecar として注入します。
 Istioから提供されているEnvoyのDocker Imageは`istio-proxy`という名前で提供されており、`kubectl get pod [podname]`などで構成を確認すると`istio-proxy`という名前を確認することができます。
@@ -84,7 +84,7 @@ kubectl get deployment -n istio-operator -l operator.istio.io/component=IstioOpe
 kubectl set env deployment/istio-operator-1-11-4 WATCH_NAMESPACE="istio-system,myteam" -n istio-operator
 ```
 
-Ingress Gatewayの具体的な設定は[次の節](/docs/05/traffic-management/)で紹介しています。
+Ingress Gatewayの具体的な設定は[次の節](../../service-mesh/traffic-management)で紹介しています。
 
 ## istio-proxyのサイドカーが不要なケース
 
@@ -118,4 +118,4 @@ BFFはその特性上、各マイクロサービスから情報をかき集め�
 特定のバージョンから悪化しているのであればロールバックを実行したり、
 Client Side Rendering可能な情報であれば最初のHTMLを構成するためのクリティカルパスから除外したりすることが可能です。
 少なくとも、継続的な監視は問題を明確にし、物事の優先度を合理的に決定することができます。
-[負荷試験](/docs/08/loadtest/)や[モニタリング](/docs/08/monitoring/)の節で具体的なMetricsの可視化を紹介しています。
+[負荷試験](../../performance/load-test)や[モニタリング](../../performance/monitoring)の節で具体的なMetricsの可視化を紹介しています。

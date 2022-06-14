@@ -22,7 +22,7 @@ Argo CDによるGitOpsの実現は同時にGitOpsを開発者に強制します�
 @bot update version:2.0.0 app:servive-a
 ```
 
-これを受け取ったbotサーバーは、メッセージの入力者を判別したり、コマンド(`update version`)をパースしたりします。コマンドに応じてGitHub APIをCallし、[JSONで記述されたファイル](/docs/03/kubernetes-manifest-generator-architecture/)(User Config)を書き換え、commitします。
+これを受け取ったbotサーバーは、メッセージの入力者を判別したり、コマンド(`update version`)をパースしたりします。コマンドに応じてGitHub APIをCallし、[JSONで記述されたファイル](../../manifest/kubernetes-manifest-generator-architecture)(User Config)を書き換え、commitします。
 その後Pull Requestを作成して、結果をユーザーに返します。
 
 作成されたPull RequestをさらにSlackからマージします。

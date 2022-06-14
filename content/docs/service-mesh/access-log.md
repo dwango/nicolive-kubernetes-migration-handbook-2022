@@ -283,7 +283,7 @@ spec:
 `/tmp/sidecar-nginx`に対してUnix Socket用のEmpty Directoryを作成し、Pod内でシェアすることでPodとして見たときにポータビリティが確保できます。
 
 IstioOperatorで新しくContainerやVolumeを追加する場合は現状 `k8s.overlays` で頑張って追加するしかありませんが、
-[ManifestをTypeScriptで管理](/docs/03/kubernetes-manifest-written-by-typescript/)しているため、管理が難しいなどの問題は発生しませんでした。
+[ManifestをTypeScriptで管理](../../manifest/kubernetes-manifest-written-by-typescript)しているため、管理が難しいなどの問題は発生しませんでした。
 
 ただしバージョンアップに伴ってIstioOperatorが作成するIngressGatewayのDeploymentを確認する必要があります。
 早々バージョン更新の頻度は高くないので、バージョン更新後の検証と同時にやっても問題ないでしょう。
