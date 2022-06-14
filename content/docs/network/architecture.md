@@ -33,9 +33,9 @@ ApacheによるLoad Balanceは移行前のDocker Swarmと同じですが、全�
 
 また、Rate Limitなどnginxで実施していたシステムの防衛処理はKubernetesクラスター全体に対するGlobal Rate LimitとPod単位のLocal Rate Limitに機能を分割しました。これらの詳細は別のページで紹介しています。
 
-* [Rate Limitに関して](../rate-limit/global-ratelimit)
-* [Istio Ingress Gatewayに関して](../service-mesh/istio-ingress-gateway)
-* [アクセスログに関して](../service-mesh/access-log)
+* [Rate Limitに関して](../../rate-limit/global-ratelimit)
+* [Istio Ingress Gatewayに関して](../../service-mesh/traffic-management)
+* [アクセスログに関して](../../service-mesh/access-log)
 
 ## Apacheを移行時のロードバランサーとして選定した理由
 
