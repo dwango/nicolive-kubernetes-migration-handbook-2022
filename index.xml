@@ -58,7 +58,7 @@ Ingress Gatewayとアクセスログ周りのアーキテクチャ # 戦略と�
 fluent-bitで収集してfluentdに渡している理由 # fluentdは移行前からあるログ収集の手段です。 fluent-bitはfluentdのC言語実装で、fluent-bitも出力先をfluentdと同じ場所に向けることは可能です。 しかしながらこれも移行をスムーズに進めるために既存のfluentdの設定を頑張ってfluent-bitに移すことはしませんでした。
 nginxからfluent-bitにUnix Socket経由でログを送信している理由 # 最初、fluent-bitをDaemonSetとして配置してIngress Gateway用のNodeに配置するようにしていました。 nginxのログをstdoutで出力し、/var/log/containers/[containerId].logに出力されるnginxのログをfluent-bitのtail INPUTを利用して収集していました。
 しかしながら、高rps環境下でtailを利用するとfluent-bitのtailが突然止まる不具合に遭遇しました。 これはissueに起票されていますが、活発でないとしてBotによって2022/04/09クローズされました。
-https://github.com/fluent/fluent-bit/issues/3947 挙動を見ているとどうやら/var/log/containersに出力されるログファイルのシンボリックリンク先である、 /var/log/pods/[pod-id]/0.logが.gzファイルにアーカイブされるときにファイルディスクリプタあたりが変更されそこでうまくfluent-bitが処理で基底なさそうだということがなんとなくわかっています。 とはいえこれを修正するためにfluent-bitにPull Requestを送って、リリースされるまでの間ログが収集できないとなると移行スケジュールに問題が発生するため別の方法を考えました。
+https://github.com/fluent/fluent-bit/issues/3947 挙動を見ているとどうやら/var/log/containersに出力されるログファイルのシンボリックリンク先である、 /var/log/pods/[pod-id]/0.logが.gzファイルにアーカイブされるときにファイルディスクリプタあたりが変更されそこでうまくfluent-bitが処理できていなさそうだということがなんとなくわかっています。 とはいえこれを修正するためにfluent-bitにPull Requestを送って、リリースされるまでの間ログが収集できないとなると移行スケジュールに問題が発生するため別の方法を考えました。
 幸い、AWSのfluent-bitのトラブルシューティングがあったのでここを参考にしました。
 https://github.com/aws/aws-for-fluent-bit/blob/mainline/troubleshooting/debugging.md Scalingの章に高スループットでfluent-bitを運用するための方法が紹介されており、そこに「DaemonSetモデルからSidecarモデルへ」と「ログファイルのTailからLog Streamingモデルへ」の変更が有効であることが記述されていました。
 すぐにこれを採用し、最初に紹介したアーキテクチャへと変貌を遂げました
