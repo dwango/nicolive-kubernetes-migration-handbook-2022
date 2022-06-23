@@ -48,7 +48,7 @@ nginxのログを`stdout`で出力し、`/var/log/containers/[containerId].log`�
 * https://github.com/fluent/fluent-bit/issues/3947
 
 挙動を見ているとどうやら`/var/log/containers`に出力されるログファイルのシンボリックリンク先である、
-`/var/log/pods/[pod-id]/0.log`が`.gz`ファイルにアーカイブされるときにファイルディスクリプタあたりが変更されそこでうまくfluent-bitが処理で基底なさそうだということがなんとなくわかっています。
+`/var/log/pods/[pod-id]/0.log`が`.gz`ファイルにアーカイブされるときにファイルディスクリプタあたりが変更されそこでうまくfluent-bitが処理できていなさそうだということがなんとなくわかっています。
 とはいえこれを修正するためにfluent-bitにPull Requestを送って、リリースされるまでの間ログが収集できないとなると移行スケジュールに問題が発生するため別の方法を考えました。
 
 幸い、AWSのfluent-bitのトラブルシューティングがあったのでここを参考にしました。
