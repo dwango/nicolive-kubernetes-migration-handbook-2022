@@ -85,7 +85,7 @@ kubernetes/overlays
 kubernetes/overlays/[デプロイ環境]/[マイクロサービス名]
 ```
 
-したがって、フロントエンドのチームが管理するArgoCDのapp of appsの親は次のようなArgoCDのApplicationがそれぞれのパスを散所するようにずらっと並んでいます。
+したがって、フロントエンドのチームが管理するArgoCDのapp of appsの親は次のようなArgoCDのApplicationがそれぞれのパスを参照するようにずらっと並んでいます。
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
